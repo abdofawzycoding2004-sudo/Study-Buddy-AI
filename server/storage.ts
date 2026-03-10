@@ -1,38 +1,65 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { materials, quizzes, questions, type InsertMaterial, type Material, type InsertQuiz, type Quiz, type InsertQuestion, type Question, type QuizWithQuestions } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Materials
+  getMaterials(): Promise<Material[]>;
+  getMaterial(id: number): Promise<Material | undefined>;
+  createMaterial(material: InsertMaterial): Promise<Material>;
+  deleteMaterial(id: number): Promise<void>;
+
+  // Quizzes
+  getQuizzes(): Promise<Quiz[]>;
+  getQuiz(id: number): Promise<QuizWithQuestions | undefined>;
+  createQuiz(quiz: InsertQuiz, quizQuestions: InsertQuestion[]): Promise<QuizWithQuestions>;
+  
+  // Also expose chat storage
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getMaterials(): Promise<Material[]> {
+    return await db.select().from(materials);
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getMaterial(id: number): Promise<Material | undefined> {
+    const [material] = await db.select().from(materials).where(eq(materials.id, id));
+    return material;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createMaterial(insertMaterial: InsertMaterial): Promise<Material> {
+    const [material] = await db.insert(materials).values(insertMaterial).returning();
+    return material;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async deleteMaterial(id: number): Promise<void> {
+    await db.delete(materials).where(eq(materials.id, id));
+  }
+
+  async getQuizzes(): Promise<Quiz[]> {
+    return await db.select().from(quizzes);
+  }
+
+  async getQuiz(id: number): Promise<QuizWithQuestions | undefined> {
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, id));
+    if (!quiz) return undefined;
+
+    const quizQuestions = await db.select().from(questions).where(eq(questions.quizId, id));
+    return { ...quiz, questions: quizQuestions };
+  }
+
+  async createQuiz(insertQuiz: InsertQuiz, quizQuestions: Omit<InsertQuestion, "quizId">[]): Promise<QuizWithQuestions> {
+    const [quiz] = await db.insert(quizzes).values(insertQuiz).returning();
+    
+    const questionsToInsert = quizQuestions.map(q => ({
+      ...q,
+      quizId: quiz.id
+    }));
+    
+    const insertedQuestions = await db.insert(questions).values(questionsToInsert).returning();
+    
+    return { ...quiz, questions: insertedQuestions };
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
