@@ -79,17 +79,26 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Material not found" });
       }
 
-      // Generate quiz using OpenRouter
+      // Generate quiz using OpenRouter with teacher system prompt
+      const quizSystemPrompt = `You are an expert AI tutor creating an educational quiz. Create a multiple choice quiz that tests deeper understanding, not just recall.
+
+Requirements:
+- Each question should test conceptual understanding
+- Include one correct answer and three plausible distractors
+- Provide clear explanations for why the correct answer is right
+- Use LaTeX for mathematical expressions: $(expression)$ for inline, $$(expression)$$ for block equations
+- Format: { "title": "Quiz Title", "questions": [{ "questionText": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "...", "explanation": "Clear explanation with LaTeX if needed" }] }`;
+      
       const response = await openrouter.chat.completions.create({
         model: "meta-llama/llama-3.3-70b-instruct",
         messages: [
           {
             role: "system",
-            content: "You are a helpful AI tutor. Create a multiple choice quiz based on the provided material. Return JSON in the format: { \"title\": \"Quiz Title\", \"questions\": [{ \"questionText\": \"...\", \"options\": [\"A\", \"B\", \"C\", \"D\"], \"correctAnswer\": \"...\", \"explanation\": \"...\" }] }. The correctAnswer should exactly match one of the options."
+            content: quizSystemPrompt
           },
           {
             role: "user",
-            content: `Material:\n${material.content.substring(0, 4000)}` // Limit content length if needed
+            content: `Material:\n${material.content.substring(0, 4000)}`
           }
         ],
         response_format: { type: "json_object" },
