@@ -1,0 +1,132 @@
+I am building a **professional AI Tutor platform for students**. The system should be designed specifically to help students deeply understand their study materials, not just provide short answers like a normal chatbot.
+
+Please implement the following improvements and features.
+
+---
+
+### 1. Fix LaTeX Formatting Issue
+
+Currently, answers sometimes display **dollar signs ($)** around equations instead of properly rendered math.
+
+Requirements:
+
+* Mathematical expressions must be rendered using **LaTeX**.
+* Inline math should use ( ... )
+* Block equations should use $$ ... $$.
+* The frontend must render equations correctly using a library like **KaTeX or MathJax**, so students see proper mathematical notation instead of raw dollar signs.
+
+Example:
+Instead of displaying
+`$E = h \nu$`
+
+It should render as a formatted equation.
+
+---
+
+### 2. Fix Material Upload Failure
+
+Currently, when a student uploads a file, it begins loading but then fails with **“failed to save material.”**
+
+Please:
+
+* Debug and fix the **file upload pipeline**.
+* Ensure the system correctly stores and processes the following formats:
+
+  * PDF
+  * PowerPoint
+  * Word documents
+  * Excel spreadsheets
+* After uploading, the AI should automatically:
+
+  * Extract the content
+  * Store it in the system
+  * Make it searchable for the AI tutor.
+
+---
+
+### 3. AI Tutor Explanation System
+
+The AI tutor should behave like a **professional teacher**, not just an answer generator.
+
+When solving problems such as:
+
+x² + 5x + 6 = 0
+
+The tutor should:
+
+1. Explain the concept step-by-step.
+2. Show the solving process clearly.
+3. Explain the mathematical rule being used.
+4. Provide additional examples.
+5. Include tricky examples that students often misunderstand.
+6. End with a **summary of the concept**.
+
+Example flow:
+
+* Step-by-step solution
+* Explanation of the rule (e.g., factoring quadratics)
+* Additional example
+* Tricky example
+* Concept summary.
+
+This behavior should apply to **all subjects**, not just mathematics.
+
+---
+
+### 4. Visual Learning Support
+
+The AI tutor should also generate **visual explanations** when helpful.
+
+Examples:
+
+* Diagrams explaining **atomic interactions**
+* Physics concept illustrations
+* Graphs for mathematical functions
+* Charts for statistics or data analysis
+
+If possible, the system should support:
+
+* Static diagrams
+* Generated charts
+* Optional animated visualizations when explaining processes.
+
+---
+
+### 5. Smart Study Assistant for Uploaded Materials
+
+When a student uploads a document (PDF, PowerPoint, Word, Excel), the AI tutor should automatically:
+
+1. Generate a **clear summary** of the document.
+2. Identify the **key concepts**.
+3. Create a **study plan** for learning the material.
+4. Generate **practice questions**.
+5. Highlight important or difficult topics.
+
+---
+
+### 6. Multi-Language Support
+
+The AI tutor must support **students worldwide**.
+
+Requirements:
+
+* Accept questions in any language.
+* Provide explanations in the student’s language.
+* Automatically detect the language used by the student.
+
+---
+
+### 7. Enhanced Chatbot Capabilities
+
+The chatbot should support advanced learning interactions, including:
+
+* Step-by-step problem solving
+* Equation rendering
+* Graph generation
+* Chart generation for statistics
+* Visual diagrams for scientific concepts
+* Example generation
+* Concept summaries
+* Follow-up questions to test understanding.
+
+The goal is to build a **global AI Tutor platform that behaves like a highly skilled teacher and adapts explanations to the student's learning needs.**
