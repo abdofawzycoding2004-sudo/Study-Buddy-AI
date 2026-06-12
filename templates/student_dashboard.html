@@ -7,26 +7,128 @@
         <p class="lead">لوحة تحكم الطالب - EduMentor AI</p>
     </div>
 </div>
-<div class="container py-5">
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card p-4 text-center">
-                <h5 class="brand-color fw-bold">المدرسة</h5>
-                <p>{{ user.school_name|default:"غير محدد" }}</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card p-4 text-center">
-                <h5 class="brand-color fw-bold">الصف الدراسي</h5>
-                <p>{{ user.grade_level|default:"غير محدد" }}</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card p-4 text-center">
-                <h5 class="brand-color fw-bold">الحالة</h5>
-                <p>نشط</p>
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card" style="height: 600px; display: flex; flex-direction: column;">
+                <div class="card-header bg-brand text-white">
+                    <h5 class="mb-0">المساعد التعليمي الذكي</h5>
+                </div>
+                <div id="chat-messages" class="card-body overflow-auto" style="flex: 1; background: #f8fafc;">
+                    {% for msg in history reversed %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-end mb-1">
+                                <div class="bg-brand text-white rounded-3 px-3 py-2" style="max-width: 80%;">
+                                    {{ msg.question }}
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-start">
+                                <div class="bg-light rounded-3 px-3 py-2" style="max-width: 80%;">
+                                    {{ msg.answer|linebreaks }}
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div id="empty-msg" class="text-center text-muted mt-5">
+                            <p>اسأل سؤالاً عن المنهج الدراسي</p>
+                        </div>
+                    {% endfor %}
+                    <div id="loading-indicator" class="d-none">
+                        <div class="d-flex justify-content-start">
+                            <div class="bg-light rounded-3 px-3 py-2">
+                                <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                                جاري التفكير...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white">
+                    <form id="chat-form" class="d-flex gap-2">
+                        {% csrf_token %}
+                        <input type="text" id="question-input" class="form-control" placeholder="اكتب سؤالك هنا..." required>
+                        <button type="submit" id="send-btn" class="btn btn-brand">إرسال</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function getCookie(name) {
+    let value = "; " + document.cookie;
+    let parts = value.split("; " + name + "=");
+    if (parts.length === 2) return parts.pop().split(";").shift();
+}
+
+document.getElementById('chat-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const input = document.getElementById('question-input');
+    const question = input.value.trim();
+    if (!question) return;
+
+    const messagesDiv = document.getElementById('chat-messages');
+    const emptyMsg = document.getElementById('empty-msg');
+    const loading = document.getElementById('loading-indicator');
+
+    if (emptyMsg) emptyMsg.remove();
+
+    const userBubble = document.createElement('div');
+    userBubble.className = 'd-flex justify-content-end mb-1';
+    userBubble.innerHTML = '<div class="bg-brand text-white rounded-3 px-3 py-2" style="max-width: 80%;">' + question + '</div>';
+    messagesDiv.appendChild(userBubble);
+
+    input.value = '';
+    loading.classList.remove('d-none');
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    const aiBubble = document.createElement('div');
+    aiBubble.className = 'd-flex justify-content-start mb-3';
+    const aiContent = document.createElement('div');
+    aiContent.className = 'bg-light rounded-3 px-3 py-2';
+    aiContent.style.maxWidth = '80%';
+    aiBubble.appendChild(aiContent);
+    messagesDiv.appendChild(aiBubble);
+
+    try {
+        const resp = await fetch('/api/chat/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ question: question }),
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = JSON.parse(line.slice(6));
+                    if (data.error) {
+                        aiContent.textContent = 'خطأ: ' + data.error;
+                    } else if (data.done) {
+                        loading.classList.add('d-none');
+                    } else if (data.token) {
+                        aiContent.textContent += data.token;
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        aiContent.textContent = 'حدث خطأ في الاتصال';
+    }
+
+    loading.classList.add('d-none');
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+</script>
 {% endblock %}

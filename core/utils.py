@@ -4,6 +4,10 @@ import docx
 import chromadb
 from chromadb.config import Settings
 from django.conf import settings
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def extract_text_from_pdf(file_path):
@@ -80,3 +84,59 @@ def store_document_chunks(document, chunks):
     )
 
     return len(chunks)
+
+
+def query_similar_chunks(question, n_results=3):
+    client = get_chroma_client()
+    collection = client.get_or_create_collection(name="teacher_documents")
+    if collection.count() == 0:
+        return []
+    results = collection.query(
+        query_texts=[question],
+        n_results=n_results,
+    )
+    chunks = []
+    if results and results['documents']:
+        for i, doc in enumerate(results['documents'][0]):
+            chunks.append({
+                'text': doc,
+                'metadata': results['metadatas'][0][i] if results['metadatas'] else {},
+                'distance': results['distances'][0][i] if results['distances'] else 0,
+            })
+    return chunks
+
+
+def get_llm_client():
+    api_key = os.getenv('LLM_API_KEY')
+    base_url = os.getenv('LLM_BASE_URL')
+    if not api_key:
+        raise ValueError("LLM_API_KEY environment variable is not set")
+    kwargs = {'api_key': api_key}
+    if base_url:
+        kwargs['base_url'] = base_url
+    return OpenAI(**kwargs)
+
+
+def build_rag_prompt(question, chunks):
+    context = "\n\n".join([c['text'] for c in chunks])
+    return (
+        "You are an AI tutor. Answer the student's question using ONLY the following context "
+        "from their teacher's curriculum. If the answer is not in the context, say you don't know.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question: {question}"
+    )
+
+
+def ask_llm_stream(question, chunks):
+    client = get_llm_client()
+    prompt = build_rag_prompt(question, chunks)
+    model = os.getenv('LLM_MODEL', 'gpt-4o-mini')
+    stream = client.chat.completions.create(
+        model=model,
+        messages=[{'role': 'user', 'content': prompt}],
+        stream=True,
+    )
+    for chunk in stream:
+        delta = chunk.choices[0].delta.content if chunk.choices else ''
+        if delta:
+            yield delta

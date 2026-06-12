@@ -25,3 +25,16 @@ class Document(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ChatMessage(models.Model):
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_messages')
+    question = models.TextField()
+    answer = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.student.username}: {self.question[:50]}"

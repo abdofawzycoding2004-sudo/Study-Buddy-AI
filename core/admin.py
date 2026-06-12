@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Document
+from .models import User, Document, ChatMessage
 
 
 @admin.register(User)
@@ -16,3 +16,9 @@ class CustomUserAdmin(UserAdmin):
 class DocumentAdmin(admin.ModelAdmin):
     list_display = ['title', 'teacher', 'uploaded_at', 'is_processed']
     list_filter = ['is_processed', 'uploaded_at']
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ['student', 'question', 'created_at']
+    list_filter = ['created_at']

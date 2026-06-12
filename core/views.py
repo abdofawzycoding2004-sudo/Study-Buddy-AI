@@ -1,10 +1,12 @@
+import json
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import StreamingHttpResponse
 from .forms import TeacherRegistrationForm, StudentRegistrationForm
-from .models import Document
-from .utils import extract_text, chunk_text, store_document_chunks
+from .models import Document, ChatMessage
+from .utils import extract_text, chunk_text, store_document_chunks, query_similar_chunks, ask_llm_stream
 
 
 def home(request):
@@ -97,5 +99,50 @@ def teacher_dashboard(request):
 
 
 @login_required
+def chat_api(request):
+    if request.method != 'POST' or request.user.role != 'student':
+        return StreamingHttpResponse(
+            'data: {"error": "Unauthorized"}\n\n',
+            content_type='text/event-stream',
+        )
+    data = json.loads(request.body)
+    question = data.get('question', '').strip()
+    if not question:
+        return StreamingHttpResponse(
+            'data: {"error": "Question is required"}\n\n',
+            content_type='text/event-stream',
+        )
+
+    chunks = query_similar_chunks(question)
+
+    def event_stream():
+        full_answer = ""
+        try:
+            if not chunks:
+                full_answer = "لا توجد مستندات مرفوعة بعد. يرجى سؤال مدرسك لرفع محتوى تعليمي أولاً."
+                yield f"data: {json.dumps({'token': full_answer, 'done': True})}\n\n"
+            else:
+                for token in ask_llm_stream(question, chunks):
+                    full_answer += token
+                    yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
+                yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        ChatMessage.objects.create(
+            student=request.user,
+            question=question,
+            answer=full_answer,
+        )
+
+    return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+
+
+@login_required
 def student_dashboard(request):
-    return render(request, 'student_dashboard.html', {'user': request.user})
+    history = ChatMessage.objects.filter(student=request.user)[:10]
+    return render(request, 'student_dashboard.html', {
+        'user': request.user,
+        'history': history,
+    })
