@@ -3,6 +3,8 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .forms import TeacherRegistrationForm, StudentRegistrationForm
+from .models import Document
+from .utils import extract_text, chunk_text, store_document_chunks
 
 
 def home(request):
@@ -59,8 +61,39 @@ def logout_view(request):
 
 
 @login_required
+def upload_document(request):
+    if request.method == 'POST' and request.user.role == 'teacher':
+        title = request.POST.get('title')
+        file = request.FILES.get('file')
+        if title and file:
+            doc = Document.objects.create(
+                teacher=request.user,
+                title=title,
+                file=file,
+            )
+            try:
+                text = extract_text(doc.file.path)
+                chunks = chunk_text(text)
+                chunk_count = store_document_chunks(doc, chunks)
+                doc.is_processed = True
+                doc.chunk_count = chunk_count
+                doc.save()
+                messages.success(request, f'تم رفع "{title}" ومعالجته بنجاح')
+            except Exception as e:
+                messages.error(request, f'حدث خطأ أثناء المعالجة: {e}')
+        else:
+            messages.error(request, 'يرجى إدخال العنوان ورفع ملف')
+        return redirect('teacher_dashboard')
+    return redirect('teacher_dashboard')
+
+
+@login_required
 def teacher_dashboard(request):
-    return render(request, 'teacher_dashboard.html', {'user': request.user})
+    documents = Document.objects.filter(teacher=request.user).order_by('-uploaded_at')
+    return render(request, 'teacher_dashboard.html', {
+        'user': request.user,
+        'documents': documents,
+    })
 
 
 @login_required

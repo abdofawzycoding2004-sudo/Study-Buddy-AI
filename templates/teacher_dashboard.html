@@ -7,26 +7,76 @@
         <p class="lead">لوحة تحكم المدرس - EduMentor AI</p>
     </div>
 </div>
-<div class="container py-5">
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card p-4 text-center">
-                <h5 class="brand-color fw-bold">المدرسة</h5>
-                <p>{{ user.school_name|default:"غير محدد" }}</p>
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card p-4">
+                <h4 class="brand-color fw-bold mb-3">رفع مستند جديد</h4>
+                <form method="post" enctype="multipart/form-data" action="{% url 'upload_document' %}" id="upload-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">عنوان المستند</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الملف (PDF أو DOCX)</label>
+                        <input type="file" name="file" class="form-control" accept=".pdf,.docx,.doc" required>
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100" id="upload-btn">
+                        <span id="btn-text">رفع ومعالجة</span>
+                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    </button>
+                </form>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card p-4 text-center">
-                <h5 class="brand-color fw-bold">المستندات</h5>
-                <p>0 مستند</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card p-4 text-center">
-                <h5 class="brand-color fw-bold">الحالة</h5>
-                <p>نشط</p>
+        <div class="col-md-7">
+            <div class="card p-4">
+                <h4 class="brand-color fw-bold mb-3">المستندات المرفوعة</h4>
+                {% if documents %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>العنوان</th>
+                                    <th>تاريخ الرفع</th>
+                                    <th>الحالة</th>
+                                    <th>القطع</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documents %}
+                                    <tr>
+                                        <td>{{ doc.title }}</td>
+                                        <td>{{ doc.uploaded_at|date:"Y-m-d H:i" }}</td>
+                                        <td>
+                                            {% if doc.is_processed %}
+                                                <span class="badge bg-success">تمت المعالجة</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">قيد المعالجة</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ doc.chunk_count }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">لا توجد مستندات مرفوعة بعد</p>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('upload-form')?.addEventListener('submit', function(e) {
+    var btn = document.getElementById('upload-btn');
+    var text = document.getElementById('btn-text');
+    var spinner = document.getElementById('btn-spinner');
+    btn.disabled = true;
+    text.textContent = 'جارٍ المعالجة...';
+    spinner.classList.remove('d-none');
+});
+</script>
 {% endblock %}
