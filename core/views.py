@@ -2,6 +2,7 @@ import json
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.http import StreamingHttpResponse
 from .forms import TeacherRegistrationForm, StudentRegistrationForm
@@ -98,11 +99,16 @@ def teacher_dashboard(request):
     })
 
 
-@login_required
+@csrf_exempt
 def chat_api(request):
-    if request.method != 'POST' or request.user.role != 'student':
+    if not request.user.is_authenticated or request.user.role != 'student':
         return StreamingHttpResponse(
             'data: {"error": "Unauthorized"}\n\n',
+            content_type='text/event-stream',
+        )
+    if request.method != 'POST':
+        return StreamingHttpResponse(
+            'data: {"error": "Use POST"}\n\n',
             content_type='text/event-stream',
         )
     data = json.loads(request.body)
@@ -114,6 +120,7 @@ def chat_api(request):
         )
 
     chunks = query_similar_chunks(question)
+    user = request.user
 
     def event_stream():
         full_answer = ""
@@ -131,7 +138,7 @@ def chat_api(request):
             return
 
         ChatMessage.objects.create(
-            student=request.user,
+            student=user,
             question=question,
             answer=full_answer,
         )
