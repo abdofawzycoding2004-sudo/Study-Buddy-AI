@@ -1,0 +1,18 @@
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import User, Document
+
+
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    list_display = ['username', 'email', 'role', 'school_name', 'is_active']
+    list_filter = ['role', 'is_active']
+    fieldsets = UserAdmin.fieldsets + (
+        ('Additional Info', {'fields': ('role', 'school_name', 'grade_level')}),
+    )
+
+
+@admin.register(Document)
+class DocumentAdmin(admin.ModelAdmin):
+    list_display = ['title', 'teacher', 'uploaded_at', 'is_processed']
+    list_filter = ['is_processed', 'uploaded_at']

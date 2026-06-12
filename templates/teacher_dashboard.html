@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}لوحة التحكم - المدرس{% endblock %}
+{% block content %}
+<div class="hero-section text-center">
+    <div class="container">
+        <h1 class="fw-bold">مرحباً بك، {{ user.username }}</h1>
+        <p class="lead">لوحة تحكم المدرس - EduMentor AI</p>
+    </div>
+</div>
+<div class="container py-5">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card p-4 text-center">
+                <h5 class="brand-color fw-bold">المدرسة</h5>
+                <p>{{ user.school_name|default:"غير محدد" }}</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 text-center">
+                <h5 class="brand-color fw-bold">المستندات</h5>
+                <p>0 مستند</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 text-center">
+                <h5 class="brand-color fw-bold">الحالة</h5>
+                <p>نشط</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
