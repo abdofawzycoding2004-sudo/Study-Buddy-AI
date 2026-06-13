@@ -11,10 +11,14 @@ from .views_teacher import (
     QuestionDeleteView,
     AssessmentSubmissionsView, SubmissionDetailView,
     SubmissionGradeView, BulkGradeView,
+    DocumentListView, DocumentCreateView, DocumentUpdateView,
+    DocumentDeleteView, DocumentDetailView, DocumentAnalyticsView,
 )
 from .views_student import (
     StudentAssessmentListView, StudentAssessmentDetailView,
     StudentAssessmentSubmitView, StudentSubmissionResultView,
+    StudentDocumentListView, StudentDocumentDownloadView,
+    StudentDocumentViewView,
 )
 
 urlpatterns = [
@@ -51,4 +55,17 @@ urlpatterns = [
     path('student/assessments/<int:pk>/', StudentAssessmentDetailView.as_view(), name='student_assessment_detail'),
     path('student/assessments/<int:pk>/submit/', StudentAssessmentSubmitView.as_view(), name='student_assessment_submit'),
     path('student/assessments/submission/<int:pk>/result/', StudentSubmissionResultView.as_view(), name='student_submission_result'),
+
+    # Document Sharing (Teacher)
+    path('teacher/documents/', DocumentListView.as_view(), name='teacher_documents'),
+    path('teacher/documents/create/', DocumentCreateView.as_view(), name='document_create'),
+    path('teacher/documents/<int:pk>/', DocumentDetailView.as_view(), name='document_detail'),
+    path('teacher/documents/<int:pk>/update/', DocumentUpdateView.as_view(), name='document_update'),
+    path('teacher/documents/<int:pk>/delete/', DocumentDeleteView.as_view(), name='document_delete'),
+    path('teacher/documents/analytics/', DocumentAnalyticsView.as_view(), name='document_analytics'),
+
+    # Document Sharing (Student)
+    path('student/documents/', StudentDocumentListView.as_view(), name='student_documents'),
+    path('student/documents/<int:pk>/download/', StudentDocumentDownloadView.as_view(), name='document_download'),
+    path('student/documents/<int:pk>/view/', StudentDocumentViewView.as_view(), name='document_view'),
 ]

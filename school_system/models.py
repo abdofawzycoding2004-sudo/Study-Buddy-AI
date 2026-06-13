@@ -1,3 +1,5 @@
+import os
+import mimetypes
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -736,3 +738,134 @@ class StudentAnswer(models.Model):
 
     def __str__(self):
         return f"{self.question} - {self.answer_text[:50]}"
+
+
+class DocumentCategory(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    color = models.CharField(max_length=7, default='#4F46E5')
+    icon = models.CharField(max_length=50, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return self.name
+
+
+class DocumentShare(models.Model):
+    FILE_TYPE_CHOICES = [
+        ('DOCUMENT', 'Document'),
+        ('IMAGE', 'Image'),
+        ('VIDEO', 'Video'),
+        ('AUDIO', 'Audio'),
+    ]
+
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    file_upload = models.FileField(upload_to='documents/%Y/%m/%d/')
+    file_type = models.CharField(max_length=20, choices=FILE_TYPE_CHOICES)
+    file_size = models.PositiveIntegerField(help_text='File size in bytes')
+    mime_type = models.CharField(max_length=100)
+    category = models.ForeignKey(
+        DocumentCategory, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='documents',
+    )
+    owner_teacher = models.ForeignKey(
+        TeacherProfile, on_delete=models.CASCADE, related_name='shared_documents',
+    )
+    subject = models.ForeignKey(
+        Subject, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='documents',
+    )
+    is_public = models.BooleanField(default=False)
+    allowed_classes = models.ManyToManyField(
+        ClassRoom, blank=True, related_name='shared_documents',
+    )
+    allowed_students = models.ManyToManyField(
+        StudentProfile, blank=True, related_name='shared_documents',
+    )
+    download_count = models.PositiveIntegerField(default=0)
+    view_count = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    published_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-published_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.owner_teacher})"
+
+    def clean(self):
+        max_bytes = getattr(settings, 'MAX_UPLOAD_SIZE', 100 * 1024 * 1024)
+        if self.file_size > max_bytes:
+            raise ValidationError(f'File size exceeds maximum allowed ({max_bytes // (1024*1024)}MB).')
+
+    @property
+    def is_accessible(self):
+        return self.is_active and (self.expires_at is None or self.expires_at > timezone.now())
+
+    @property
+    def file_size_mb(self):
+        return self.file_size / (1024 * 1024)
+
+    @property
+    def file_extension(self):
+        _, ext = os.path.splitext(self.file_upload.name)
+        return ext.lower()
+
+    def can_access(self, user):
+        if hasattr(user, 'teacher_profile') and user.teacher_profile == self.owner_teacher:
+            return True
+        if hasattr(user, 'student_profile'):
+            student = user.student_profile
+            if not self.is_accessible:
+                return False
+            if self.allowed_students.filter(pk=student.pk).exists():
+                return True
+            if student.classroom and self.allowed_classes.filter(pk=student.classroom.pk).exists():
+                return True
+        return False
+
+    def increment_download(self):
+        DocumentShare.objects.filter(pk=self.pk).update(download_count=models.F('download_count') + 1)
+        self.refresh_from_db(fields=['download_count'])
+
+    def increment_view(self):
+        DocumentShare.objects.filter(pk=self.pk).update(view_count=models.F('view_count') + 1)
+        self.refresh_from_db(fields=['view_count'])
+
+    def soft_delete(self):
+        self.is_active = False
+        self.save(update_fields=['is_active'])
+
+
+class DocumentAccessLog(models.Model):
+    ACTION_CHOICES = [
+        ('VIEW', 'Viewed'),
+        ('DOWNLOAD', 'Downloaded'),
+    ]
+
+    document = models.ForeignKey(
+        DocumentShare, on_delete=models.CASCADE, related_name='access_logs',
+    )
+    student = models.ForeignKey(
+        StudentProfile, on_delete=models.CASCADE, related_name='document_access_logs',
+    )
+    accessed_at = models.DateTimeField(auto_now_add=True)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['document', 'accessed_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.student} - {self.document} - {self.action}"

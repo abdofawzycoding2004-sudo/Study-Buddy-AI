@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Documents - EduMentor{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/documents.css' %}">
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="h3 fw-bold mb-4">الملفات المشتركة</h2>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-2">
+        <div class="col-md-4">
+          <input type="text" name="q" class="form-control" placeholder="بحث..." value="{{ search_query }}">
+        </div>
+        <div class="col-md-3">
+          <select name="file_type" class="form-control" onchange="this.form.submit()">
+            <option value="">كل الأنواع</option>
+            <option value="DOCUMENT" {% if current_file_type == 'DOCUMENT' %}selected{% endif %}>مستندات</option>
+            <option value="IMAGE" {% if current_file_type == 'IMAGE' %}selected{% endif %}>صور</option>
+            <option value="VIDEO" {% if current_file_type == 'VIDEO' %}selected{% endif %}>فيديو</option>
+            <option value="AUDIO" {% if current_file_type == 'AUDIO' %}selected{% endif %}>صوت</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select name="sort" class="form-control" onchange="this.form.submit()">
+            <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>الأحدث</option>
+            <option value="downloads" {% if current_sort == 'downloads' %}selected{% endif %}>الأكثر تحميلاً</option>
+            <option value="name" {% if current_sort == 'name' %}selected{% endif %}>الاسم</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-brand w-100">بحث</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {% for doc in documents %}
+    <div class="col-lg-3 col-md-4 col-sm-6">
+      <div class="card document-card h-100">
+        <div class="card-body text-center">
+          <div class="file-type-icon-large file-type-{{ doc.file_type|lower }} mb-3"></div>
+          <h6 class="fw-bold mb-1 text-truncate" title="{{ doc.title }}">{{ doc.title }}</h6>
+          <p class="text-muted small mb-2">
+            {{ doc.file_size_mb|floatformat:1 }} MB |
+            {{ doc.published_at|date:"Y-m-d" }}
+          </p>
+          {% if doc.description %}
+            <p class="text-muted small mb-2 text-truncate">{{ doc.description|truncatechars:50 }}</p>
+          {% endif %}
+          <div class="d-flex gap-1 justify-content-center">
+            <a href="{% url 'document_view' doc.pk %}" class="btn btn-sm btn-outline-brand" target="_blank">عرض</a>
+            <a href="{% url 'document_download' doc.pk %}" class="btn btn-sm btn-brand">تحميل</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="card p-5 text-center text-muted">
+        <p class="mb-0">لا توجد ملفات مشتركة متاحة حالياً</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if is_paginated %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">السابق</a></li>
+      {% endif %}
+      <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+      {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">التالي</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Delete Document - EduMentor{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-5">
+      <div class="card p-4 text-center">
+        <h2 class="h4 mb-3">حذف الملف؟</h2>
+        <p class="text-muted mb-4">{{ object.title }} ({{ object.file_size_mb|floatformat:1 }} MB)</p>
+        <form method="post">{% csrf_token %}
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="submit" class="btn btn-danger">حذف</button>
+            <a href="{% url 'teacher_documents' %}" class="btn btn-outline-secondary">إلغاء</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

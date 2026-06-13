@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Documents - EduMentor{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/documents.css' %}">
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h3 fw-bold mb-0">الملفات المشتركة</h2>
+    <a href="{% url 'document_create' %}" class="btn btn-brand">+ رفع ملف جديد</a>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_documents }}</div>
+        <div class="stat-label">إجمالي الملفات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_downloads }}</div>
+        <div class="stat-label">إجمالي التحميلات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_views }}</div>
+        <div class="stat-label">إجمالي المشاهدات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_storage_mb }} MB</div>
+        <div class="stat-label">المساحة المستخدمة</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="get" class="row g-2 mb-3">
+        <div class="col-md-3">
+          <select name="file_type" class="form-control" onchange="this.form.submit()">
+            <option value="">كل الأنواع</option>
+            {% for ft, label in file_types %}
+              <option value="{{ ft }}" {% if current_file_type == ft %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select name="subject" class="form-control" onchange="this.form.submit()">
+            <option value="">كل المواد</option>
+            {% for s in subjects %}
+              <option value="{{ s.id }}" {% if current_subject == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select name="visibility" class="form-control" onchange="this.form.submit()">
+            <option value="">كل الرؤية</option>
+            <option value="public" {% if current_visibility == 'public' %}selected{% endif %}>عام</option>
+            <option value="private" {% if current_visibility == 'private' %}selected{% endif %}>خاص</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <a href="{% url 'document_analytics' %}" class="btn btn-outline-brand w-100">عرض التحليلات</a>
+        </div>
+      </form>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>الملف</th>
+              <th>النوع</th>
+              <th>الحجم</th>
+              <th>الرؤية</th>
+              <th>الفصول المستهدفة</th>
+              <th>التحميلات</th>
+              <th>التاريخ</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for doc in documents %}
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="file-type-icon file-type-{{ doc.file_type|lower }}"></span>
+                  <div>
+                    <a href="{% url 'document_detail' doc.pk %}" class="fw-medium text-decoration-none">{{ doc.title }}</a>
+                    {% if not doc.is_accessible %}<span class="badge bg-warning ms-1">منتهي</span>{% endif %}
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge file-type-badge file-type-{{ doc.file_type|lower }}">{{ doc.get_file_type_display }}</span></td>
+              <td><span class="file-size-badge">{{ doc.file_size_mb|floatformat:1 }} MB</span></td>
+              <td>{% if doc.is_public %}<span class="text-success">عام</span>{% else %}<span class="text-muted">خاص</span>{% endif %}</td>
+              <td>
+                {% for c in doc.allowed_classes.all %}
+                  <span class="badge bg-info me-1">{{ c.name }}</span>
+                {% empty %}
+                  <span class="text-muted">—</span>
+                {% endfor %}
+              </td>
+              <td>{{ doc.download_count }}</td>
+              <td><small class="text-muted">{{ doc.published_at|date:"Y-m-d" }}</small></td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="{% url 'document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary" title="عرض">عرض</a>
+                  <a href="{% url 'document_update' doc.pk %}" class="btn btn-sm btn-outline-secondary" title="تعديل">تعديل</a>
+                  <a href="{% url 'document_delete' doc.pk %}" class="btn btn-sm btn-outline-danger" title="حذف">حذف</a>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center py-4 text-muted">لا توجد ملفات مرفوعة بعد</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if is_paginated %}
+      <nav class="mt-3">
+        <ul class="pagination justify-content-center">
+          {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">السابق</a></li>
+          {% endif %}
+          <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+          {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">التالي</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

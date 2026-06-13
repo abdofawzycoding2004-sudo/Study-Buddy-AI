@@ -7,7 +7,8 @@ from django.views.generic import (
     TemplateView, ListView, CreateView, UpdateView, DeleteView, DetailView, View,
 )
 from django.contrib import messages
-from django.db import transaction
+from django.db import models, transaction
+from django.db.models.functions import TruncDate
 from django.http import JsonResponse
 from django.utils import timezone
 
@@ -15,14 +16,15 @@ from .models import (
     TimetableSlot, LiveClassSession, AttendanceRecord,
     StudentProfile, ClassRoom, Grade, Subject,
     Assessment, Question, AnswerOption, AssessmentSubmission,
+    DocumentShare, DocumentAccessLog,
 )
 from .forms import (
     TimetableSlotForm, LiveClassSessionForm,
     AssessmentForm, QuestionForm, AnswerOptionFormSet,
-    SubmissionReviewForm,
+    SubmissionReviewForm, DocumentShareForm,
 )
 from .mixins import TeacherRequiredMixin
-from .utils import AssessmentStatistics
+from .utils import AssessmentStatistics, get_file_type
 from .notifications import (
     notify_session_confirmed, notify_session_started, notify_session_cancelled,
 )
@@ -692,3 +694,188 @@ def get_classroom_students(request):
         for s in students
     ]
     return JsonResponse(students_list, safe=False)
+
+
+# ─────────────────────── DOCUMENT SHARING (Teacher) ───────────────────────
+
+class DocumentListView(TeacherRequiredMixin, ListView):
+    model = DocumentShare
+    template_name = 'teacher/document_list.html'
+    context_object_name = 'documents'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = DocumentShare.objects.filter(
+            owner_teacher=self.request.user.teacher_profile
+        ).select_related('category', 'subject').prefetch_related('allowed_classes')
+        file_type = self.request.GET.get('file_type')
+        if file_type:
+            qs = qs.filter(file_type=file_type)
+        subject_id = self.request.GET.get('subject')
+        if subject_id:
+            qs = qs.filter(subject_id=subject_id)
+        visibility = self.request.GET.get('visibility')
+        if visibility == 'public':
+            qs = qs.filter(is_public=True)
+        elif visibility == 'private':
+            qs = qs.filter(is_public=False)
+        return qs.order_by('-published_at')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        teacher = self.request.user.teacher_profile
+        docs = DocumentShare.objects.filter(owner_teacher=teacher)
+        total_downloads = sum(d.download_count for d in docs)
+        total_views = sum(d.view_count for d in docs)
+        total_storage = sum(d.file_size for d in docs)
+        ctx.update({
+            'total_documents': docs.count(),
+            'total_downloads': total_downloads,
+            'total_views': total_views,
+            'total_storage_mb': round(total_storage / (1024 * 1024), 2),
+            'file_types': DocumentShare.FILE_TYPE_CHOICES,
+            'subjects': teacher.subjects.all(),
+            'current_file_type': self.request.GET.get('file_type', ''),
+            'current_subject': self.request.GET.get('subject', ''),
+            'current_visibility': self.request.GET.get('visibility', ''),
+        })
+        return ctx
+
+
+class DocumentCreateView(TeacherRequiredMixin, CreateView):
+    model = DocumentShare
+    form_class = DocumentShareForm
+    template_name = 'teacher/document_form.html'
+
+    def get_success_url(self):
+        return reverse_lazy('document_detail', kwargs={'pk': self.object.pk})
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['teacher'] = self.request.user.teacher_profile
+        return kwargs
+
+    def form_valid(self, form):
+        uploaded = self.request.FILES.get('file_upload')
+        if uploaded:
+            form.instance.file_size = uploaded.size
+            form.instance.mime_type = uploaded.content_type or ''
+            form.instance.file_type = get_file_type(
+                uploaded.content_type or '', uploaded.name
+            )
+            form.instance.owner_teacher = self.request.user.teacher_profile
+        return super().form_valid(form)
+
+
+class DocumentUpdateView(TeacherRequiredMixin, UpdateView):
+    model = DocumentShare
+    form_class = DocumentShareForm
+    template_name = 'teacher/document_form.html'
+    success_url = reverse_lazy('teacher_documents')
+
+    def get_queryset(self):
+        return DocumentShare.objects.filter(
+            owner_teacher=self.request.user.teacher_profile
+        )
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['teacher'] = self.request.user.teacher_profile
+        return kwargs
+
+
+class DocumentDeleteView(TeacherRequiredMixin, DeleteView):
+    model = DocumentShare
+    template_name = 'teacher/document_confirm_delete.html'
+    success_url = reverse_lazy('teacher_documents')
+
+    def get_queryset(self):
+        return DocumentShare.objects.filter(
+            owner_teacher=self.request.user.teacher_profile
+        )
+
+
+class DocumentDetailView(TeacherRequiredMixin, DetailView):
+    model = DocumentShare
+    template_name = 'teacher/document_detail.html'
+    context_object_name = 'document'
+
+    def get_queryset(self):
+        return DocumentShare.objects.filter(
+            owner_teacher=self.request.user.teacher_profile
+        ).select_related('category', 'subject').prefetch_related(
+            'allowed_classes', 'allowed_students__user'
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        doc = self.object
+        logs = DocumentAccessLog.objects.filter(document=doc).select_related(
+            'student__user'
+        ).order_by('-accessed_at')[:50]
+        unique_students = DocumentAccessLog.objects.filter(
+            document=doc
+        ).values('student').distinct().count()
+        ctx.update({
+            'access_logs': logs,
+            'unique_students': unique_students,
+        })
+        return ctx
+
+
+class DocumentAnalyticsView(TeacherRequiredMixin, TemplateView):
+    template_name = 'teacher/document_analytics.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        teacher = self.request.user.teacher_profile
+        docs = DocumentShare.objects.filter(owner_teacher=teacher)
+
+        total_downloads = sum(d.download_count for d in docs)
+        total_views = sum(d.view_count for d in docs)
+        total_storage = sum(d.file_size for d in docs)
+
+        most_downloaded = docs.order_by('-download_count').first()
+        most_viewed = docs.order_by('-view_count').first()
+
+        now = timezone.now()
+        thirty_days_ago = now - timedelta(days=30)
+        daily_logs_data = DocumentAccessLog.objects.filter(
+            document__owner_teacher=teacher,
+            accessed_at__gte=thirty_days_ago,
+        ).annotate(
+            date=TruncDate('accessed_at')
+        ).values('date').annotate(
+            total=models.Count('id')
+        ).order_by('date')
+
+        import json
+        from datetime import date as date_type
+        class DateEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, (date_type, timezone.datetime)):
+                    return obj.isoformat()
+                return super().default(obj)
+
+        daily_logs_json = json.dumps(
+            [{'date': str(d['date']), 'total': d['total']} for d in daily_logs_data],
+            cls=DateEncoder,
+        )
+
+        file_type_dist = {}
+        for doc in docs:
+            ft = doc.file_type
+            file_type_dist[ft] = file_type_dist.get(ft, 0) + 1
+
+        ctx.update({
+            'documents': docs,
+            'total_documents': docs.count(),
+            'total_downloads': total_downloads,
+            'total_views': total_views,
+            'total_storage_mb': round(total_storage / (1024 * 1024), 2),
+            'most_downloaded': most_downloaded,
+            'most_viewed': most_viewed,
+            'daily_logs_json': daily_logs_json,
+            'file_type_dist': file_type_dist,
+        })
+        return ctx

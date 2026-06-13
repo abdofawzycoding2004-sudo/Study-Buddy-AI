@@ -3,6 +3,7 @@ from .models import (
     School, Grade, ClassRoom, Subject,
     TeacherProfile, StudentProfile, TimetableSlot,
     LiveClassSession, AttendanceRecord,
+    DocumentShare, DocumentCategory, DocumentAccessLog,
 )
 
 
@@ -97,3 +98,26 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
     list_display = ['student', 'session', 'status', 'check_in_time']
     list_filter = ['status', 'session__session_date']
     search_fields = ['student__user__first_name', 'student__student_id']
+
+
+@admin.register(DocumentCategory)
+class DocumentCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'color', 'order']
+    list_editable = ['order']
+
+
+@admin.register(DocumentShare)
+class DocumentShareAdmin(admin.ModelAdmin):
+    list_display = ['title', 'file_type', 'file_size_mb', 'owner_teacher', 'is_public', 'download_count', 'is_active']
+    list_filter = ['file_type', 'is_public', 'is_active', 'subject']
+    search_fields = ['title', 'owner_teacher__user__first_name']
+    filter_horizontal = ['allowed_classes', 'allowed_students']
+    readonly_fields = ['download_count', 'view_count', 'file_size', 'mime_type']
+
+
+@admin.register(DocumentAccessLog)
+class DocumentAccessLogAdmin(admin.ModelAdmin):
+    list_display = ['document', 'student', 'action', 'accessed_at', 'ip_address']
+    list_filter = ['action', 'accessed_at']
+    search_fields = ['document__title', 'student__user__first_name']
+    readonly_fields = ['document', 'student', 'action', 'accessed_at', 'ip_address', 'user_agent']

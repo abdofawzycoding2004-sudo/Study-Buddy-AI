@@ -52,6 +52,14 @@
                                 </ul>
                             </li>
                             <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">الملفات</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'teacher_documents' %}">جميع الملفات</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'document_create' %}">رفع ملف جديد</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'document_analytics' %}">التحليلات</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">الإدارة التعليمية</a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{% url 'teacher_panel:course_list' %}">الدورات</a></li>
@@ -63,6 +71,7 @@
                         {% elif user.role == 'student' %}
                             <li class="nav-item"><a class="nav-link" href="{% url 'student_dashboard' %}">المساعد الذكي</a></li>
                             <li class="nav-item"><a class="nav-link" href="{% url 'student_assessments' %}">الانشطه</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'student_documents' %}">الملفات</a></li>
                         {% endif %}
                         <li class="nav-item"><span class="nav-link text-muted">مرحباً، {{ user.username }}</span></li>
                     {% endif %}

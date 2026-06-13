@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Document Analytics - EduMentor{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/documents.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h3 fw-bold mb-0">تحليلات الملفات</h2>
+    <a href="{% url 'teacher_documents' %}" class="btn btn-outline-secondary">عودة للملفات</a>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_documents }}</div>
+        <div class="stat-label">إجمالي الملفات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_downloads }}</div>
+        <div class="stat-label">إجمالي التحميلات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_views }}</div>
+        <div class="stat-label">إجمالي المشاهدات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3 text-center stat-card">
+        <div class="stat-value">{{ total_storage_mb }} MB</div>
+        <div class="stat-label">المساحة المستخدمة</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8 mb-4">
+      <div class="card p-4">
+        <h5 class="fw-bold mb-3">التحميلات خلال آخر 30 يوماً</h5>
+        <canvas id="chart-downloads" height="200"></canvas>
+      </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+      <div class="card p-4">
+        <h5 class="fw-bold mb-3">توزيع أنواع الملفات</h5>
+        <canvas id="chart-file-types" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <div class="card p-4">
+        <h5 class="fw-bold mb-3">الأكثر تحميلاً</h5>
+        {% if most_downloaded %}
+          <div class="d-flex align-items-center gap-3">
+            <span class="file-type-icon file-type-{{ most_downloaded.file_type|lower }}"></span>
+            <div>
+              <a href="{% url 'document_detail' most_downloaded.pk %}" class="fw-medium text-decoration-none">{{ most_downloaded.title }}</a>
+              <br><small class="text-muted">{{ most_downloaded.download_count }} تحميل</small>
+            </div>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">لا توجد بيانات</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-md-6 mb-4">
+      <div class="card p-4">
+        <h5 class="fw-bold mb-3">الأكثر مشاهدة</h5>
+        {% if most_viewed %}
+          <div class="d-flex align-items-center gap-3">
+            <span class="file-type-icon file-type-{{ most_viewed.file_type|lower }}"></span>
+            <div>
+              <a href="{% url 'document_detail' most_viewed.pk %}" class="fw-medium text-decoration-none">{{ most_viewed.title }}</a>
+              <br><small class="text-muted">{{ most_viewed.view_count }} مشاهدة</small>
+            </div>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">لا توجد بيانات</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script id="daily-logs-data" type="application/json">{{ daily_logs_json }}</script>
+<script>
+(function() {
+  var raw = document.getElementById('daily-logs-data').textContent;
+  var data = JSON.parse(raw);
+  var labels = data.map(function(d) { return d.date; });
+  var values = data.map(function(d) { return d.total; });
+
+  var ctx = document.getElementById('chart-downloads');
+  if (ctx) {
+    new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'النشاطات',
+          data: values,
+          borderColor: '#4F46E5',
+          backgroundColor: 'rgba(79, 70, 229, 0.1)',
+          fill: true,
+          tension: 0.4,
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+
+  var ctx2 = document.getElementById('chart-file-types');
+  if (ctx2) {
+    var ftData = {{ file_type_dist|safe }};
+    new Chart(ctx2.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(ftData),
+        datasets: [{
+          data: Object.values(ftData),
+          backgroundColor: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'],
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+})();
+</script>
+{% endblock %}

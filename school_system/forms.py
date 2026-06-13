@@ -8,6 +8,7 @@ from .models import (
     School, Grade, ClassRoom, Subject,
     TeacherProfile, StudentProfile, TimetableSlot, LiveClassSession,
     Assessment, Question, AnswerOption, AssessmentSubmission,
+    DocumentShare, DocumentCategory,
 )
 
 User = get_user_model()
@@ -602,3 +603,72 @@ class StudentAnswerForm(forms.Form):
                     required=q.required,
                 )
             self.fields[field_name].question_obj = q
+
+
+class DocumentShareForm(forms.ModelForm):
+    class Meta:
+        model = DocumentShare
+        fields = [
+            'title', 'description', 'file_upload', 'category', 'subject',
+            'is_public', 'allowed_classes', 'allowed_students', 'expires_at',
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'dir': 'rtl'}),
+            'file_upload': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,'
+                         '.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,'
+                         '.mp4,.avi,.mkv,.mov,.wmv,.webm,'
+                         '.mp3,.wav,.ogg,.aac,.flac,.wma',
+            }),
+            'category': forms.Select(attrs={'class': 'form-control'}),
+            'subject': forms.Select(attrs={'class': 'form-control'}),
+            'is_public': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'onchange': 'toggleVisibilityFields()',
+            }),
+            'allowed_classes': forms.SelectMultiple(attrs={
+                'class': 'form-control', 'size': '6',
+            }),
+            'allowed_students': forms.SelectMultiple(attrs={
+                'class': 'form-control', 'size': '6',
+            }),
+            'expires_at': forms.DateTimeInput(attrs={
+                'class': 'form-control', 'type': 'datetime-local',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        teacher = kwargs.pop('teacher', None)
+        super().__init__(*args, **kwargs)
+        if teacher:
+            self.fields['subject'].queryset = teacher.subjects.all()
+            self.fields['category'].queryset = DocumentCategory.objects.all()
+            assigned_classes = teacher.get_assigned_classes()
+            self.fields['allowed_classes'].queryset = assigned_classes
+            self.fields['allowed_students'].queryset = StudentProfile.objects.filter(
+                classroom__in=assigned_classes
+            )
+        self.fields['allowed_classes'].required = False
+        self.fields['allowed_students'].required = False
+        self.fields['expires_at'].required = False
+
+    def clean_file_upload(self):
+        file = self.cleaned_data.get('file_upload')
+        if not file:
+            return file
+        from .utils import validate_file_upload
+        validate_file_upload(file)
+        return file
+
+    def clean(self):
+        cleaned = super().clean()
+        is_public = cleaned.get('is_public')
+        allowed_classes = cleaned.get('allowed_classes')
+        allowed_students = cleaned.get('allowed_students')
+        if is_public and not allowed_classes and not allowed_students:
+            raise ValidationError(
+                'Select at least one class or student for a public document.'
+            )
+        return cleaned

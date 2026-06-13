@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ document.title }} - EduMentor{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/documents.css' %}">
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h2 class="h4 fw-bold mb-1">{{ document.title }}</h2>
+            <p class="text-muted small mb-0">
+              {{ document.owner_teacher.full_name }} |
+              {{ document.published_at|date:"Y-m-d H:i" }} |
+              <span class="file-type-badge file-type-{{ document.file_type|lower }}">{{ document.get_file_type_display }}</span>
+              {% if not document.is_accessible %}<span class="badge bg-warning">منتهي الصلاحية</span>{% endif %}
+            </p>
+          </div>
+          <div class="d-flex gap-1">
+            <a href="{% url 'document_update' document.pk %}" class="btn btn-sm btn-outline-secondary">تعديل</a>
+            <a href="{% url 'document_delete' document.pk %}" class="btn btn-sm btn-outline-danger">حذف</a>
+          </div>
+        </div>
+
+        {% if document.description %}
+          <p class="mb-3">{{ document.description }}</p>
+        {% endif %}
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-3 col-6">
+            <div class="border rounded p-2 text-center">
+              <div class="fw-bold">{{ document.file_size_mb|floatformat:1 }} MB</div>
+              <small class="text-muted">الحجم</small>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="border rounded p-2 text-center">
+              <div class="fw-bold">{{ document.view_count }}</div>
+              <small class="text-muted">المشاهدات</small>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="border rounded p-2 text-center">
+              <div class="fw-bold">{{ document.download_count }}</div>
+              <small class="text-muted">التحميلات</small>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="border rounded p-2 text-center">
+              <div class="fw-bold">{{ unique_students }}</div>
+              <small class="text-muted">طلاب فريدون</small>
+            </div>
+          </div>
+        </div>
+
+        {% if document.subject %}
+          <p class="mb-1"><strong>المادة:</strong> {{ document.subject.name }}</p>
+        {% endif %}
+        {% if document.category %}
+          <p class="mb-1"><strong>التصنيف:</strong> {{ document.category.name }}</p>
+        {% endif %}
+        <p class="mb-1"><strong>الرؤية:</strong> {% if document.is_public %}<span class="text-success">عام</span>{% else %}<span class="text-muted">خاص</span>{% endif %}</p>
+        {% if document.is_public %}
+          <p class="mb-1">
+            <strong>الفصول المستهدفة:</strong>
+            {% for c in document.allowed_classes.all %}
+              <span class="badge bg-info">{{ c.name }}</span>
+            {% empty %}
+              <span class="text-muted">الكل</span>
+            {% endfor %}
+          </p>
+          <p class="mb-1">
+            <strong>الطلاب المستهدفون:</strong>
+            {% for s in document.allowed_students.all %}
+              <span class="badge bg-secondary">{{ s.full_name }}</span>
+            {% empty %}
+              <span class="text-muted">الكل</span>
+            {% endfor %}
+          </p>
+        {% endif %}
+        {% if document.expires_at %}
+          <p class="mb-1"><strong>تاريخ الانتهاء:</strong> {{ document.expires_at|date:"Y-m-d H:i" }}</p>
+        {% endif %}
+      </div>
+
+      <div class="card p-4">
+        <h5 class="fw-bold mb-3">سجل النشاط</h5>
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>الطالب</th>
+                <th>الإجراء</th>
+                <th>التاريخ</th>
+                <th>IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in access_logs %}
+              <tr>
+                <td>{{ log.student.full_name }}</td>
+                <td><span class="badge {% if log.action == 'DOWNLOAD' %}bg-success{% else %}bg-info{% endif %}">{{ log.get_action_display }}</span></td>
+                <td><small>{{ log.accessed_at|date:"Y-m-d H:i" }}</small></td>
+                <td><small class="text-muted">{{ log.ip_address|default:"—" }}</small></td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-center text-muted py-3">لا يوجد نشاط بعد</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card p-4 mb-4 text-center">
+        <div class="file-type-icon-large file-type-{{ document.file_type|lower }} mb-3"></div>
+        <h6 class="fw-bold">{{ document.file_extension|upper }}</h6>
+        <div class="d-grid gap-2">
+          <a href="{{ document.file_upload.url }}" class="btn btn-brand" target="_blank">عرض الملف</a>
+          <a href="{% url 'document_detail' document.pk %}" class="btn btn-outline-brand" download>تحميل</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/documents.js' %}"></script>
+{% endblock %}

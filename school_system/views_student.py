@@ -1,10 +1,12 @@
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
-from django.views.generic import ListView, DetailView, CreateView, TemplateView
+from django.views.generic import ListView, DetailView, CreateView, TemplateView, View
 from django.contrib import messages
+from django.db import models
+from django.http import FileResponse, HttpResponseForbidden
 from django.utils import timezone
 
-from .models import Assessment, AssessmentSubmission
+from .models import Assessment, AssessmentSubmission, DocumentShare, DocumentAccessLog
 from .forms import StudentAnswerForm
 from .mixins import StudentRequiredMixin
 
@@ -215,3 +217,84 @@ class StudentSubmissionResultView(StudentRequiredMixin, DetailView):
             'max_points': assessment.max_points,
         })
         return ctx
+
+
+# ─────────────────────── DOCUMENT SHARING (Student) ───────────────────────
+
+class StudentDocumentListView(StudentRequiredMixin, ListView):
+    model = DocumentShare
+    template_name = 'student/document_list.html'
+    context_object_name = 'documents'
+    paginate_by = 20
+
+    def get_queryset(self):
+        student = self.request.user.student_profile
+        qs = DocumentShare.objects.filter(
+            is_active=True,
+            is_public=True,
+        ).filter(
+            models.Q(allowed_classes=student.classroom) |
+            models.Q(allowed_students=student)
+        ).distinct().select_related('category', 'subject', 'owner_teacher__user')
+
+        file_type = self.request.GET.get('file_type')
+        if file_type:
+            qs = qs.filter(file_type=file_type)
+
+        sort = self.request.GET.get('sort', 'newest')
+        if sort == 'downloads':
+            qs = qs.order_by('-download_count')
+        elif sort == 'name':
+            qs = qs.order_by('title')
+        else:
+            qs = qs.order_by('-published_at')
+
+        search = self.request.GET.get('q')
+        if search:
+            qs = qs.filter(title__icontains=search)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['current_file_type'] = self.request.GET.get('file_type', '')
+        ctx['current_sort'] = self.request.GET.get('sort', 'newest')
+        ctx['search_query'] = self.request.GET.get('q', '')
+        return ctx
+
+
+class StudentDocumentDownloadView(StudentRequiredMixin, View):
+
+    def get(self, request, pk):
+        student = request.user.student_profile
+        doc = get_object_or_404(DocumentShare, pk=pk, is_active=True)
+        if not doc.can_access(request.user):
+            return HttpResponseForbidden()
+        doc.increment_download()
+        DocumentAccessLog.objects.create(
+            document=doc, student=student, action='DOWNLOAD',
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+        )
+        return FileResponse(
+            doc.file_upload.open(), as_attachment=True,
+            filename=doc.file_upload.name.split('/')[-1],
+        )
+
+
+class StudentDocumentViewView(StudentRequiredMixin, View):
+
+    def get(self, request, pk):
+        student = request.user.student_profile
+        doc = get_object_or_404(DocumentShare, pk=pk, is_active=True)
+        if not doc.can_access(request.user):
+            return HttpResponseForbidden()
+        doc.increment_view()
+        DocumentAccessLog.objects.create(
+            document=doc, student=student, action='VIEW',
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+        )
+        response = FileResponse(doc.file_upload.open(), content_type=doc.mime_type)
+        response['Content-Disposition'] = f'inline; filename="{doc.file_upload.name.split("/")[-1]}"'
+        return response

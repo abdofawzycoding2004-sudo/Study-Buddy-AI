@@ -1,5 +1,12 @@
+import os
+import uuid
+from datetime import timedelta
 from decimal import Decimal
+
+from django.core.exceptions import ValidationError
 from django.db.models import Avg
+from django.utils import timezone
+
 from .models import AssessmentSubmission, Question
 
 
@@ -132,8 +139,74 @@ class AssessmentStatistics:
 
     @staticmethod
     def get_student_performance(student):
-        subs = AssessmentSubmission.objects.filter(
-            student=student, is_graded=True
-        )
+        subs = AssessmentSubmission.objects.filter(student=student, is_graded=True)
         result = subs.aggregate(avg=Avg('auto_calculated_score'))
         return round(result['avg'], 2) if result['avg'] else 0
+
+
+ALLOWED_EXTENSIONS = {
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv',
+    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg',
+    'mp4', 'avi', 'mkv', 'mov', 'wmv', 'webm',
+    'mp3', 'wav', 'ogg', 'aac', 'flac', 'wma',
+}
+MAX_UPLOAD_SIZE_MB = 100
+MIME_TYPE_MAP = {
+    'application/pdf': 'DOCUMENT',
+    'application/msword': 'DOCUMENT',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCUMENT',
+    'application/vnd.ms-excel': 'DOCUMENT',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'DOCUMENT',
+    'application/vnd.ms-powerpoint': 'DOCUMENT',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'DOCUMENT',
+    'text/plain': 'DOCUMENT',
+    'text/csv': 'DOCUMENT',
+    'image/jpeg': 'IMAGE',
+    'image/png': 'IMAGE',
+    'image/gif': 'IMAGE',
+    'image/bmp': 'IMAGE',
+    'image/webp': 'IMAGE',
+    'image/svg+xml': 'IMAGE',
+    'video/mp4': 'VIDEO',
+    'video/x-msvideo': 'VIDEO',
+    'video/x-matroska': 'VIDEO',
+    'video/quicktime': 'VIDEO',
+    'video/x-ms-wmv': 'VIDEO',
+    'video/webm': 'VIDEO',
+    'audio/mpeg': 'AUDIO',
+    'audio/wav': 'AUDIO',
+    'audio/ogg': 'AUDIO',
+    'audio/aac': 'AUDIO',
+    'audio/flac': 'AUDIO',
+    'audio/x-ms-wma': 'AUDIO',
+}
+
+
+def get_file_type(mime_type, filename):
+    result = MIME_TYPE_MAP.get(mime_type)
+    if result:
+        return result
+    ext = os.path.splitext(filename)[1].lower().lstrip('.')
+    if ext in {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv'}:
+        return 'DOCUMENT'
+    if ext in {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'}:
+        return 'IMAGE'
+    if ext in {'mp4', 'avi', 'mkv', 'mov', 'wmv', 'webm'}:
+        return 'VIDEO'
+    if ext in {'mp3', 'wav', 'ogg', 'aac', 'flac', 'wma'}:
+        return 'AUDIO'
+    return 'DOCUMENT'
+
+
+def validate_file_upload(file, max_size_mb=MAX_UPLOAD_SIZE_MB):
+    if file.size > max_size_mb * 1024 * 1024:
+        raise ValidationError(f'File size exceeds {max_size_mb}MB limit.')
+    ext = os.path.splitext(file.name)[1].lower().lstrip('.')
+    if ext not in ALLOWED_EXTENSIONS:
+        raise ValidationError(f'File type .{ext} is not allowed.')
+
+
+def generate_unique_filename(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    safe_name = f"{uuid.uuid4().hex}_{timezone.now().strftime('%Y%m%d%H%M%S')}{ext}"
+    return os.path.join('documents', timezone.now().strftime('%Y/%m/%d'), safe_name)

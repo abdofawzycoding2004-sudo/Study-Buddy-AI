@@ -1,0 +1,134 @@
+/* ─── Upload Area ─── */
+.upload-area {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f9fafb;
+  position: relative;
+}
+.upload-area:hover,
+.upload-area-dragover {
+  border-color: #4F46E5;
+  background: #eef2ff;
+}
+.upload-area input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.upload-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* ─── File Type Icons ─── */
+.file-type-icon {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  text-align: center;
+  line-height: 32px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+.file-type-icon-large {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 auto;
+}
+.file-type-DOCUMENT { background: #4F46E5; }
+.file-type-IMAGE { background: #10B981; }
+.file-type-VIDEO { background: #F59E0B; }
+.file-type-AUDIO { background: #EF4444; }
+
+.file-type-DOCUMENT::before { content: "PDF"; font-size: 10px; }
+.file-type-IMAGE::before { content: "IMG"; font-size: 10px; }
+.file-type-VIDEO::before { content: "VID"; font-size: 10px; }
+.file-type-AUDIO::before { content: "AUD"; font-size: 10px; }
+
+.file-type-icon-large.file-type-DOCUMENT::before { content: "PDF"; font-size: 16px; }
+.file-type-icon-large.file-type-IMAGE::before { content: "IMG"; font-size: 16px; }
+.file-type-icon-large.file-type-VIDEO::before { content: "VID"; font-size: 16px; }
+.file-type-icon-large.file-type-AUDIO::before { content: "AUD"; font-size: 16px; }
+
+/* ─── File Type Badges ─── */
+.file-type-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+}
+.file-type-badge.file-type-DOCUMENT { background: #4F46E5; }
+.file-type-badge.file-type-IMAGE { background: #10B981; }
+.file-type-badge.file-type-VIDEO { background: #F59E0B; }
+.file-type-badge.file-type-AUDIO { background: #EF4444; }
+
+/* ─── File Size Badge ─── */
+.file-size-badge {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ─── Document Card ─── */
+.document-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e5e7eb;
+}
+.document-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgba(0,0,0,0.15);
+}
+
+/* ─── Stat Cards ─── */
+.stat-card {
+  border: 1px solid #e5e7eb;
+}
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #4F46E5;
+}
+.stat-label {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* ─── Progress Bar ─── */
+.progress-bar-brand {
+  background-color: #4F46E5;
+}
+
+/* ─── Print Styles ─── */
+@media print {
+  .navbar, footer, .btn { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .file-type-icon-large {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
