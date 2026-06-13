@@ -18,6 +18,21 @@
         <a href="{% url 'timetable_create' %}" class="btn btn-brand">+ Add New Slot</a>
     </div>
 
+    {% if teacher_grades %}
+        <div class="mb-4">
+            <ul class="nav nav-pills session-filter-tabs">
+                <li class="nav-item">
+                    <a class="nav-link {% if not selected_grade_id %}active{% endif %}" href="{% url 'teacher_timetable' %}">All Grades</a>
+                </li>
+                {% for g in teacher_grades %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if selected_grade_id == g.id %}active{% endif %}" href="?grade_id={{ g.id }}">{{ g.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
     <div class="timetable-grid">
         {% for day in day_data %}
             <div class="timetable-day-column">
@@ -28,7 +43,8 @@
                         <div class="slot-class">{{ slot.classroom }}</div>
                         <div class="slot-time">{{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}</div>
                         <div class="slot-duration">{{ slot.duration_formatted }}</div>
-                        <div class="mt-2">
+                        <div class="mt-2 d-flex gap-1 flex-wrap">
+                            <a href="{% url 'live_session_create' slot.pk %}" class="btn btn-sm btn-success">New Session</a>
                             <a href="{% url 'timetable_update' slot.pk %}" class="btn btn-sm btn-outline-brand">Edit</a>
                             <a href="{% url 'timetable_delete' slot.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
                         </div>

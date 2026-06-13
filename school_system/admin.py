@@ -41,10 +41,18 @@ class SubjectAdmin(admin.ModelAdmin):
 
 @admin.register(TeacherProfile)
 class TeacherProfileAdmin(admin.ModelAdmin):
-    list_display = ['employee_id', 'school', 'experience_years', 'is_active']
+    list_display = ['employee_id', 'school', 'experience_years', 'grades_taught', 'is_active']
     list_filter = ['school', 'is_active']
     search_fields = ['user__email', 'employee_id']
     filter_horizontal = ['subjects']
+
+    def grades_taught(self, obj):
+        grade_ids = TimetableSlot.objects.filter(
+            teacher=obj, is_active=True
+        ).values_list('classroom__grade', flat=True).distinct()
+        grades = Grade.objects.filter(id__in=grade_ids)
+        return ', '.join(g.name for g in grades) if grades else '—'
+    grades_taught.short_description = 'Grades Taught'
 
 
 @admin.register(StudentProfile)
@@ -57,11 +65,16 @@ class StudentProfileAdmin(admin.ModelAdmin):
 @admin.register(TimetableSlot)
 class TimetableSlotAdmin(admin.ModelAdmin):
     list_display = [
-        'classroom', 'subject', 'teacher', 'day_of_week',
+        'classroom', 'grade_name', 'subject', 'teacher', 'day_of_week',
         'start_time', 'end_time', 'duration_mins', 'is_active',
     ]
-    list_filter = ['day_of_week', 'classroom__grade__school', 'is_active']
+    list_filter = ['day_of_week', 'classroom__grade', 'classroom__grade__school', 'is_active']
     search_fields = ['teacher__user__first_name', 'subject__name', 'classroom__name']
+
+    def grade_name(self, obj):
+        return obj.classroom.grade.name
+    grade_name.short_description = 'Grade'
+    grade_name.admin_order_field = 'classroom__grade__name'
 
 
 @admin.register(LiveClassSession)

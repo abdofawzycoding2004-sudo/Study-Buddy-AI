@@ -4,7 +4,7 @@ from .views_teacher import (
     TimetableSlotDeleteView, LiveClassSessionListView,
     LiveClassSessionCreateView, LiveClassControlView,
     AttendanceManagementView, BulkAttendanceSaveView,
-    ClassRoomCreateView, get_school_subjects,
+    get_school_subjects,
 )
 
 urlpatterns = [
@@ -17,6 +17,5 @@ urlpatterns = [
     path('teacher/sessions/<int:pk>/control/', LiveClassControlView.as_view(), name='live_session_control'),
     path('teacher/sessions/<int:session_id>/attendance/', AttendanceManagementView.as_view(), name='attendance_management'),
     path('teacher/sessions/<int:session_id>/attendance/save/', BulkAttendanceSaveView.as_view(), name='attendance_save'),
-    path('teacher/classroom/create/', ClassRoomCreateView.as_view(), name='teacher_classroom_create'),
     path('api/school-subjects/', get_school_subjects, name='api_school_subjects'),
 ]

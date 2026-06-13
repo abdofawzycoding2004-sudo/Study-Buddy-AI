@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from .models import (
     TimetableSlot, LiveClassSession, AttendanceRecord,
-    StudentProfile, ClassRoom, School, Grade, Subject,
+    StudentProfile, ClassRoom, Grade, Subject,
 )
 from .forms import TimetableSlotForm, LiveClassSessionForm
 from .mixins import TeacherRequiredMixin
@@ -28,9 +28,15 @@ class TimetableView(TeacherRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         teacher = self.request.user.teacher_profile
+
+        grade_id = self.request.GET.get('grade_id')
+
         slots = TimetableSlot.objects.filter(
             teacher=teacher, is_active=True
         ).select_related('subject', 'classroom', 'classroom__grade')
+
+        if grade_id:
+            slots = slots.filter(classroom__grade__id=grade_id)
 
         slots_by_day = {}
         for i in range(7):
@@ -48,14 +54,17 @@ class TimetableView(TeacherRequiredMixin, TemplateView):
                 'slots': slots_by_day[i],
             })
 
+        teacher_grades = Grade.objects.filter(
+            id__in=slots.values_list('classroom__grade', flat=True).distinct()
+        ) if not grade_id else Grade.objects.filter(id=grade_id)
+
         ctx.update({
             'day_data': day_data,
             'total_hours': total_hours,
             'total_slots': slots.count(),
             'subjects': teacher.subjects.all(),
-            'classrooms': ClassRoom.objects.filter(
-                grade__school=teacher.school, is_active=True
-            ).select_related('grade'),
+            'teacher_grades': teacher_grades,
+            'selected_grade_id': int(grade_id) if grade_id else None,
         })
         return ctx
 
@@ -318,30 +327,3 @@ def get_school_subjects(request):
         return JsonResponse([], safe=False)
     subjects = Subject.objects.filter(schools__id=school_id).values('id', 'name', 'code')
     return JsonResponse(list(subjects), safe=False)
-
-
-class ClassRoomCreateView(TeacherRequiredMixin, CreateView):
-    model = ClassRoom
-    template_name = 'teacher/classroom_form.html'
-    fields = ['grade', 'name', 'room_number', 'capacity']
-    success_url = reverse_lazy('teacher_timetable')
-
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        teacher = self.request.user.teacher_profile
-        form.fields['grade'].queryset = Grade.objects.filter(
-            school=teacher.school, is_active=True
-        )
-        form.fields['grade'].widget.attrs['class'] = 'form-control'
-        form.fields['name'].widget.attrs['class'] = 'form-control'
-        form.fields['name'].widget.attrs['dir'] = 'rtl'
-        form.fields['room_number'].widget.attrs['class'] = 'form-control'
-        form.fields['capacity'].widget.attrs['class'] = 'form-control'
-        form.fields['capacity'].initial = 30
-        return form
-
-    def form_valid(self, form):
-        teacher = self.request.user.teacher_profile
-        form.instance.grade = form.cleaned_data['grade']
-        messages.success(self.request, f'Class {form.instance.name} created.')
-        return super().form_valid(form)
