@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}تصحيح الواجب{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="fw-bold brand-color mb-1">تصحيح الواجب</h2>
+            <p class="text-muted mb-0">
+                الطالب: <strong>{{ submission.student.username }}</strong> |
+                الواجب: <strong>{{ submission.assignment.title }}</strong> |
+                الدرجة القصوى: <strong>{{ submission.assignment.max_points }}</strong>
+            </p>
+        </div>
+        <a href="{% url 'teacher_panel:grading_list' %}" class="btn btn-outline-secondary btn-sm">العودة</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h5 class="fw-bold mb-3">تعليمات الواجب</h5>
+                <p>{{ submission.assignment.instructions|linebreaks }}</p>
+                <p class="small text-muted">تاريخ التسليم: {{ submission.assignment.due_date|date:"Y-m-d H:i" }}</p>
+                <p class="small">
+                    {% if submission.file_upload %}
+                        <a href="{{ submission.file_upload.url }}" target="_blank" class="btn btn-outline-brand btn-sm">تحميل ملف الطالب</a>
+                    {% endif %}
+                </p>
+                <p class="small">
+                    {% if submission.is_late %}
+                        <span class="badge bg-danger">متأخر</span>
+                    {% endif %}
+                    تم التسليم: {{ submission.submitted_at|date:"Y-m-d H:i" }}
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h5 class="fw-bold mb-3">إضافة درجة وتقييم</h5>
+                <form method="post">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger small">{{ field.errors }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-brand">حفظ</button>
+                        <a href="{% url 'teacher_panel:grading_list' %}" class="btn btn-outline-secondary">إلغاء</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

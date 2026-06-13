@@ -1,4 +1,5 @@
 import os
+import json
 import PyPDF2
 import docx
 import chromadb
@@ -120,16 +121,26 @@ def get_llm_client():
 def build_rag_prompt(question, chunks):
     context = "\n\n".join([c['text'] for c in chunks])
     return (
-        "You are an AI tutor. Answer the student's question using ONLY the following context "
-        "from their teacher's curriculum. If the answer is not in the context, say you don't know.\n\n"
-        f"Context:\n{context}\n\n"
-        f"Question: {question}"
+        "You are an AI tutor. The student has curriculum documents uploaded by their teacher. "
+        "Use the following context to answer if relevant. If not, use your own knowledge to give a helpful answer.\n\n"
+        f"Context from curriculum:\n{context}\n\n"
+        f"Student question: {question}"
+    )
+
+
+def build_general_prompt(question):
+    return (
+        "You are an AI tutor helping a student. Answer their question thoroughly and clearly. "
+        f"\n\nStudent question: {question}"
     )
 
 
 def ask_llm_stream(question, chunks):
     client = get_llm_client()
-    prompt = build_rag_prompt(question, chunks)
+    if chunks:
+        prompt = build_rag_prompt(question, chunks)
+    else:
+        prompt = build_general_prompt(question)
     model = os.getenv('LLM_MODEL', 'gpt-4o-mini')
     stream = client.chat.completions.create(
         model=model,
@@ -140,3 +151,70 @@ def ask_llm_stream(question, chunks):
         delta = chunk.choices[0].delta.content if chunk.choices else ''
         if delta:
             yield delta
+
+
+def generate_quiz(num_questions, difficulty, question_type, chunks=None):
+    client = get_llm_client()
+    if chunks:
+        context = "\n\n".join([c['text'] for c in chunks])
+        prompt = (
+            f"You are an AI tutor. Generate {num_questions} {question_type} questions "
+            f"of {difficulty} difficulty based on the following curriculum context. "
+            "Make them thoughtful and educational, testing real understanding. "
+            "Return a valid JSON array only, no other text. "
+            "Each item must have: 'question' (string), 'correct_answer' (string). "
+        )
+        if question_type == 'multiple_choice':
+            prompt += (
+                "Include 'options' (array of 4 strings) for each question. "
+                "The correct_answer must match one of the options exactly."
+            )
+        prompt += f"\n\nContext:\n{context}"
+    else:
+        prompt = (
+            f"You are an AI tutor. Generate {num_questions} {question_type} questions "
+            f"of {difficulty} difficulty on general academic subjects (science, math, history, language, geography). "
+            "Make them thoughtful and educational, testing real understanding, not trivial facts. "
+            "Return a valid JSON array only, no other text. "
+            "Each item must have: 'question' (string), 'correct_answer' (string). "
+        )
+        if question_type == 'multiple_choice':
+            prompt += (
+                "Include 'options' (array of 4 strings) for each question. "
+                "Make the distractors plausible. The correct_answer must match one of the options exactly."
+            )
+        prompt += " Ensure questions are appropriate for a middle school or high school level."
+
+    model = os.getenv('LLM_MODEL', 'gpt-4o-mini')
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[{'role': 'user', 'content': prompt}],
+        temperature=0.7,
+    )
+    content = resp.choices[0].message.content.strip()
+    if content.startswith('```'):
+        content = content.split('\n', 1)[-1]
+        content = content.rsplit('```', 1)[0]
+    return json.loads(content)
+
+
+def grade_short_answer(question, correct_answer, student_answer):
+    client = get_llm_client()
+    prompt = (
+        f"Question: {question}\n"
+        f"Correct answer: {correct_answer}\n"
+        f"Student answer: {student_answer}\n\n"
+        "Evaluate the student's answer. Return a valid JSON object only, no other text: "
+        '{"correct": boolean, "feedback": "brief explanation"}'
+    )
+    model = os.getenv('LLM_MODEL', 'gpt-4o-mini')
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[{'role': 'user', 'content': prompt}],
+        temperature=0.3,
+    )
+    content = resp.choices[0].message.content.strip()
+    if content.startswith('```'):
+        content = content.split('\n', 1)[-1]
+        content = content.rsplit('```', 1)[0]
+    return json.loads(content)

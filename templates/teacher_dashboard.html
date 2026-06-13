@@ -8,75 +8,165 @@
     </div>
 </div>
 <div class="container py-4">
-    <div class="row">
-        <div class="col-md-5">
-            <div class="card p-4">
-                <h4 class="brand-color fw-bold mb-3">رفع مستند جديد</h4>
-                <form method="post" enctype="multipart/form-data" action="{% url 'upload_document' %}" id="upload-form">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label class="form-label">عنوان المستند</label>
-                        <input type="text" name="title" class="form-control" required>
+    <ul class="nav nav-tabs mb-4" id="teacherTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active fw-bold" id="docs-tab" data-bs-toggle="tab" data-bs-target="#docs-panel" type="button">المستندات</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics-panel" type="button">التحليلات</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="docs-panel">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="card p-4">
+                        <h4 class="brand-color fw-bold mb-3">رفع مستند جديد</h4>
+                        <form method="post" enctype="multipart/form-data" action="{% url 'upload_document' %}" id="upload-form">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label">عنوان المستند</label>
+                                <input type="text" name="title" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">الملف (PDF أو DOCX)</label>
+                                <input type="file" name="file" class="form-control" accept=".pdf,.docx,.doc" required>
+                            </div>
+                            <button type="submit" class="btn btn-brand w-100" id="upload-btn">
+                                <span id="btn-text">رفع ومعالجة</span>
+                                <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            </button>
+                        </form>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">الملف (PDF أو DOCX)</label>
-                        <input type="file" name="file" class="form-control" accept=".pdf,.docx,.doc" required>
+                </div>
+                <div class="col-md-7">
+                    <div class="card p-4">
+                        <h4 class="brand-color fw-bold mb-3">المستندات المرفوعة</h4>
+                        {% if documents %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead><tr><th>العنوان</th><th>تاريخ الرفع</th><th>الحالة</th><th>القطع</th></tr></thead>
+                                    <tbody>
+                                        {% for doc in documents %}
+                                            <tr>
+                                                <td>{{ doc.title }}</td>
+                                                <td>{{ doc.uploaded_at|date:"Y-m-d H:i" }}</td>
+                                                <td>{% if doc.is_processed %}<span class="badge bg-success">تمت المعالجة</span>{% else %}<span class="badge bg-warning">قيد المعالجة</span>{% endif %}</td>
+                                                <td>{{ doc.chunk_count }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-0">لا توجد مستندات مرفوعة بعد</p>
+                        {% endif %}
                     </div>
-                    <button type="submit" class="btn btn-brand w-100" id="upload-btn">
-                        <span id="btn-text">رفع ومعالجة</span>
-                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
-        <div class="col-md-7">
-            <div class="card p-4">
-                <h4 class="brand-color fw-bold mb-3">المستندات المرفوعة</h4>
-                {% if documents %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>العنوان</th>
-                                    <th>تاريخ الرفع</th>
-                                    <th>الحالة</th>
-                                    <th>القطع</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for doc in documents %}
-                                    <tr>
-                                        <td>{{ doc.title }}</td>
-                                        <td>{{ doc.uploaded_at|date:"Y-m-d H:i" }}</td>
-                                        <td>
-                                            {% if doc.is_processed %}
-                                                <span class="badge bg-success">تمت المعالجة</span>
-                                            {% else %}
-                                                <span class="badge bg-warning">قيد المعالجة</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ doc.chunk_count }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+
+        <div class="tab-pane fade" id="analytics-panel">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="brand-color fw-bold mb-3">متوسط درجات الاختبارات لكل طالب</h5>
+                        <div style="height:250px"><canvas id="scoreChart"></canvas></div>
+                        {% if not quiz_data %}
+                            <p class="text-muted text-center mt-3 mb-0">لا توجد نتائج اختبارات بعد</p>
+                        {% endif %}
                     </div>
-                {% else %}
-                    <p class="text-muted mb-0">لا توجد مستندات مرفوعة بعد</p>
-                {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="brand-color fw-bold mb-3">المواضيع الأكثر تداولاً</h5>
+                        <div style="height:250px"><canvas id="topicChart"></canvas></div>
+                        {% if not topics %}
+                            <p class="text-muted text-center mt-3 mb-0">لا توجد أسئلة من الطلاب بعد</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card p-4">
+                        <h5 class="brand-color fw-bold mb-3">نشاط الطلاب</h5>
+                        {% if students_data %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead><tr><th>الطالب</th><th>إجمالي الأسئلة</th><th>متوسط الدرجات</th><th>عدد الاختبارات</th></tr></thead>
+                                    <tbody>
+                                        {% for s in students_data %}
+                                            <tr>
+                                                <td>{{ s.student__username }}</td>
+                                                <td>{{ s.total_questions }}</td>
+                                                <td>
+                                                    {% for q in quiz_data %}
+                                                        {% if q.student__username == s.student__username %}
+                                                            {{ q.avg_score|floatformat:1 }} / 100
+                                                        {% endif %}
+                                                    {% empty %}--{% endfor %}
+                                                </td>
+                                                <td>
+                                                    {% for q in quiz_data %}
+                                                        {% if q.student__username == s.student__username %}
+                                                            {{ q.total_attempts }}
+                                                        {% endif %}
+                                                    {% empty %}0{% endfor %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-0">لا يوجد نشاط بعد</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-document.getElementById('upload-form')?.addEventListener('submit', function(e) {
-    var btn = document.getElementById('upload-btn');
-    var text = document.getElementById('btn-text');
-    var spinner = document.getElementById('btn-spinner');
-    btn.disabled = true;
-    text.textContent = 'جارٍ المعالجة...';
-    spinner.classList.remove('d-none');
+document.getElementById('upload-form')?.addEventListener('submit', function() {
+    document.getElementById('upload-btn').disabled = true;
+    document.getElementById('btn-text').textContent = 'جارٍ المعالجة...';
+    document.getElementById('btn-spinner').classList.remove('d-none');
 });
+
+{% if quiz_data %}
+new Chart(document.getElementById('scoreChart'), {
+    type: 'bar',
+    data: {
+        labels: [{% for q in quiz_data %}'{{ q.student__username }}',{% endfor %}],
+        datasets: [{
+            label: 'متوسط الدرجات',
+            data: [{% for q in quiz_data %}{{ q.avg_score|floatformat:1 }},{% endfor %}],
+            backgroundColor: '#4F46E5',
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 100 } }
+    }
+});
+{% endif %}
+
+{% if topics %}
+new Chart(document.getElementById('topicChart'), {
+    type: 'pie',
+    data: {
+        labels: [{% for t in topics %}'{{ t.topic }}',{% endfor %}],
+        datasets: [{
+            data: [{% for t in topics %}{{ t.count }},{% endfor %}],
+            backgroundColor: ['#4F46E5','#7C3AED','#EC4899','#F59E0B','#10B981','#3B82F6','#EF4444','#8B5CF6'],
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8 } } }
+    }
+});
+{% endif %}
 </script>
 {% endblock %}

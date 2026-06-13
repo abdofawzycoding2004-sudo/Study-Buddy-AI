@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Document, ChatMessage
+from .models import User, Document, ChatMessage, QuizAttempt
 
 
 @admin.register(User)
@@ -21,4 +21,10 @@ class DocumentAdmin(admin.ModelAdmin):
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
     list_display = ['student', 'question', 'created_at']
+    list_filter = ['created_at']
+
+
+@admin.register(QuizAttempt)
+class QuizAttemptAdmin(admin.ModelAdmin):
+    list_display = ['student', 'score', 'total', 'created_at']
     list_filter = ['created_at']

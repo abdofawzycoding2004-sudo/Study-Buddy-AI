@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}إضافة اختبار{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h2 class="fw-bold brand-color mb-4">إضافة اختبار للوحدة: {{ module.title }}</h2>
+    <div class="card p-4">
+        <form method="post">
+            {% csrf_token %}
+            <h5 class="fw-bold mb-3">إعدادات الاختبار</h5>
+            <div class="row g-3 mb-4">
+                {% for field in quiz_form %}
+                    <div class="col-md-3">
+                        <label class="form-label">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="text-danger small">{{ field.errors }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h5 class="fw-bold mb-3">الإجابات (اختر الإجابة الصحيحة)</h5>
+            {{ question_formset.management_form }}
+            <div class="row g-3">
+                {% for form in question_formset %}
+                    <div class="col-md-6">
+                        <div class="card p-3 border">
+                            <div class="mb-2">
+                                <label class="form-label small">نص الإجابة</label>
+                                {{ form.text }}
+                            </div>
+                            <div class="form-check">
+                                {{ form.is_correct }}
+                                <label class="form-check-label small" for="{{ form.is_correct.id_for_label }}">إجابة صحيحة</label>
+                            </div>
+                            {% if form.DELETE %}
+                                <div class="form-check mt-2">
+                                    {{ form.DELETE }}
+                                    <label class="form-check-label small text-danger" for="{{ form.DELETE.id_for_label }}">حذف</label>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-brand">حفظ الاختبار</button>
+                <a href="{% url 'teacher_panel:course_detail' module.course.pk %}" class="btn btn-outline-secondary">إلغاء</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

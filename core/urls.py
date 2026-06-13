@@ -11,4 +11,7 @@ urlpatterns = [
     path('dashboard/student/', views.student_dashboard, name='student_dashboard'),
     path('upload/', views.upload_document, name='upload_document'),
     path('api/chat/', views.chat_api, name='chat_api'),
+    path('api/generate-quiz/', views.generate_quiz_view, name='generate_quiz'),
+    path('api/grade-short-answer/', views.grade_short_answer_view, name='grade_short_answer'),
+    path('api/save-quiz-result/', views.save_quiz_result, name='save_quiz_result'),
 ]

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}{{ course.title }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="fw-bold brand-color mb-1">{{ course.title }}</h2>
+            <p class="text-muted">{{ course.description }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'teacher_panel:course_list' %}" class="btn btn-outline-secondary btn-sm">العودة</a>
+            <a href="{% url 'teacher_panel:attendance_sheet' course.pk %}" class="btn btn-outline-brand btn-sm">الحضور</a>
+        </div>
+    </div>
+
+    {% for module in course.modules.all %}
+        <div class="card mb-4">
+            <div class="card-header bg-brand text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ module.title }}</h5>
+                <span class="badge bg-light text-dark">الترتيب: {{ module.order }}</span>
+            </div>
+            <div class="card-body">
+                {% if module.description %}
+                    <p class="text-muted">{{ module.description }}</p>
+                {% endif %}
+
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item"><button class="nav-link active fw-bold small" data-bs-toggle="tab" data-bs-target="#materials-{{ module.pk }}" type="button">المواد</button></li>
+                    <li class="nav-item"><button class="nav-link fw-bold small" data-bs-toggle="tab" data-bs-target="#assignments-{{ module.pk }}" type="button">الواجبات</button></li>
+                    <li class="nav-item"><button class="nav-link fw-bold small" data-bs-toggle="tab" data-bs-target="#quizzes-{{ module.pk }}" type="button">الاختبارات</button></li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="materials-{{ module.pk }}">
+                        {% if module.materials.all %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead><tr><th>العنوان</th><th>النوع</th><th>الترتيب</th></tr></thead>
+                                    <tbody>
+                                        {% for mat in module.materials.all %}
+                                            <tr>
+                                                <td>{{ mat.title }}</td>
+                                                <td><span class="badge bg-secondary">{{ mat.get_file_type_display }}</span></td>
+                                                <td>{{ mat.order }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted small mb-0">لا توجد مواد مضافة بعد</p>
+                        {% endif %}
+                    </div>
+                    <div class="tab-pane fade" id="assignments-{{ module.pk }}">
+                        {% if module.assignments.all %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead><tr><th>العنوان</th><th>تاريخ التسليم</th><th>الدرجة القصوى</th></tr></thead>
+                                    <tbody>
+                                        {% for asgn in module.assignments.all %}
+                                            <tr>
+                                                <td>{{ asgn.title }}</td>
+                                                <td>{{ asgn.due_date|date:"Y-m-d H:i" }}</td>
+                                                <td>{{ asgn.max_points }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted small mb-0">لا توجد واجبات مضافة بعد</p>
+                        {% endif %}
+                    </div>
+                    <div class="tab-pane fade" id="quizzes-{{ module.pk }}">
+                        {% if module.quizzes.all %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead><tr><th>العنوان</th><th>المهلة (دقائق)</th><th>عدد المحاولات</th></tr></thead>
+                                    <tbody>
+                                        {% for quiz in module.quizzes.all %}
+                                            <tr>
+                                                <td>{{ quiz.title }}</td>
+                                                <td>{{ quiz.time_limit_mins }}</td>
+                                                <td>{{ quiz.max_attempts }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted small mb-0">لا توجد اختبارات مضافة بعد</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="mt-3 d-flex gap-2">
+                    <a href="{% url 'teacher_panel:module_create' course.pk %}" class="btn btn-brand btn-sm">+ إضافة وحدة</a>
+                    <a href="{% url 'teacher_panel:quiz_create' module.pk %}" class="btn btn-outline-brand btn-sm">+ إضافة اختبار</a>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="card p-5 text-center">
+            <p class="text-muted mb-3">لا توجد وحدات دراسية بعد</p>
+            <a href="{% url 'teacher_panel:module_create' course.pk %}" class="btn btn-brand">إضافة الوحدة الأولى</a>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}تسجيل الدخول{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card p-4 shadow-sm">
+                <h3 class="fw-bold brand-color text-center mb-4">تسجيل الدخول</h3>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">البريد الإلكتروني</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                            <div class="text-danger small">{{ form.username.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">كلمة المرور</label>
+                        {{ form.password }}
+                        {% if form.password.errors %}
+                            <div class="text-danger small">{{ form.password.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                        <label class="form-check-label" for="remember">تذكرني</label>
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100">تسجيل الدخول</button>
+                </form>
+                <hr>
+                <div class="text-center">
+                    <p class="mb-1">ليس لديك حساب؟</p>
+                    <a href="{% url 'teacher_register' %}" class="btn btn-outline-brand btn-sm">تسجيل كمدرس</a>
+                    <a href="{% url 'student_register' %}" class="btn btn-outline-brand btn-sm">تسجيل كطالب</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

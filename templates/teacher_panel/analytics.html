@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}التحليلات{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h2 class="fw-bold brand-color mb-4">تحليلات الأداء</h2>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card p-3 text-center">
+                <h3 class="brand-color fw-bold mb-0">{{ total_courses }}</h3>
+                <small class="text-muted">إجمالي الدورات</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center">
+                <h3 class="brand-color fw-bold mb-0">{{ class_average|floatformat:1 }}</h3>
+                <small class="text-muted">متوسط الدرجات</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center">
+                <h3 class="brand-color fw-bold mb-0">{{ total_submissions }}</h3>
+                <small class="text-muted">إجمالي التسليمات</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center">
+                <h3 class="brand-color fw-bold mb-0">{{ submission_rate }}%</h3>
+                <small class="text-muted">نسبة التسليم</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h5 class="brand-color fw-bold mb-3">الدورات</h5>
+                {% if course_list %}
+                    <ul class="list-group list-group-flush">
+                        {% for c in course_list %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                {{ c.title }}
+                                <a href="{% url 'teacher_panel:course_detail' c.pk %}" class="btn btn-outline-brand btn-sm">عرض</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">لا توجد دورات</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h5 class="brand-color fw-bold mb-3">الطلاب المعرضون للخطر</h5>
+                {% if at_risk_students %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead><tr><th>الطالب</th><th>متوسط الدرجات</th><th>عدد الغياب</th></tr></thead>
+                            <tbody>
+                                {% for s in at_risk_students %}
+                                    <tr class="{% if s.absence_count > 3 %}table-danger{% endif %}">
+                                        <td>{{ s.username }}</td>
+                                        <td>{{ s.avg_grade|floatformat:1 }}</td>
+                                        <td>{{ s.absence_count }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">لا يوجد طلاب معرضون للخطر</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

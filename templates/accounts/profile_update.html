@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}الملف الشخصي{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h3 class="fw-bold brand-color text-center mb-4">الملف الشخصي</h3>
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="text-center mb-4">
+                        {% if user.profile_picture and user.profile_picture.url != '/media/profile_pics/default.png' %}
+                            <img src="{{ user.profile_picture.url }}" alt="Profile" class="rounded-circle" style="width: 120px; height: 120px; object-fit: cover;">
+                        {% else %}
+                            <div class="rounded-circle bg-brand d-inline-flex align-items-center justify-content-center" style="width: 120px; height: 120px;">
+                                <span class="text-white fw-bold" style="font-size: 2.5rem;">{{ user.get_full_name|default:user.username|first|upper }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">الصورة الشخصية</label>
+                        {{ form.profile_picture }}
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">الاسم الأول</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">اسم العائلة</label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">رقم الهاتف</label>
+                            {{ form.phone_number }}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <strong>البريد الإلكتروني:</strong> {{ user.email }}<br>
+                        <strong>الدور:</strong>
+                        {% if user.role == 'TEACHER' %}مدرس
+                        {% elif user.role == 'STUDENT' %}طالب
+                        {% elif user.role == 'ADMIN' %}مسؤول
+                        {% else %}{{ user.role }}{% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-brand w-100">حفظ التغييرات</button>
+                </form>
+                <div class="text-center mt-3">
+                    <a href="{% url 'login' %}" class="text-muted small">تغيير كلمة المرور</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

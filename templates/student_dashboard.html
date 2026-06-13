@@ -8,46 +8,107 @@
     </div>
 </div>
 <div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card" style="height: 600px; display: flex; flex-direction: column;">
-                <div class="card-header bg-brand text-white">
-                    <h5 class="mb-0">المساعد التعليمي الذكي</h5>
-                </div>
-                <div id="chat-messages" class="card-body overflow-auto" style="flex: 1; background: #f8fafc;">
-                    {% for msg in history reversed %}
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-end mb-1">
-                                <div class="bg-brand text-white rounded-3 px-3 py-2" style="max-width: 80%;">
-                                    {{ msg.question }}
+    <ul class="nav nav-tabs mb-4" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active brand-color fw-bold" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button">المساعد الذكي</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link brand-color fw-bold" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz-panel" type="button">تمارين ومراجعة</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="chat-panel">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card" style="height: 600px; display: flex; flex-direction: column;">
+                        <div class="card-header bg-brand text-white">
+                            <h5 class="mb-0">المساعد التعليمي الذكي</h5>
+                        </div>
+                        <div id="chat-messages" class="card-body overflow-auto" style="flex: 1; background: #f8fafc;">
+                            {% for msg in history reversed %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-end mb-1">
+                                        <div class="bg-brand text-white rounded-3 px-3 py-2" style="max-width: 80%;">{{ msg.question }}</div>
+                                    </div>
+                                    <div class="d-flex justify-content-start">
+                                        <div class="bg-light rounded-3 px-3 py-2" style="max-width: 80%;">{{ msg.answer|linebreaks }}</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="d-flex justify-content-start">
-                                <div class="bg-light rounded-3 px-3 py-2" style="max-width: 80%;">
-                                    {{ msg.answer|linebreaks }}
+                            {% empty %}
+                                <div id="empty-msg" class="text-center text-muted mt-5"><p>اسأل سؤالاً عن المنهج الدراسي</p></div>
+                            {% endfor %}
+                            <div id="loading-indicator" class="d-none">
+                                <div class="d-flex justify-content-start">
+                                    <div class="bg-light rounded-3 px-3 py-2">
+                                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                                        جاري التفكير...
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    {% empty %}
-                        <div id="empty-msg" class="text-center text-muted mt-5">
-                            <p>اسأل سؤالاً عن المنهج الدراسي</p>
-                        </div>
-                    {% endfor %}
-                    <div id="loading-indicator" class="d-none">
-                        <div class="d-flex justify-content-start">
-                            <div class="bg-light rounded-3 px-3 py-2">
-                                <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
-                                جاري التفكير...
-                            </div>
+                        <div class="card-footer bg-white">
+                            <form id="chat-form" class="d-flex gap-2">
+                                {% csrf_token %}
+                                <input type="text" id="question-input" class="form-control" placeholder="اكتب سؤالك هنا..." required>
+                                <button type="submit" id="send-btn" class="btn btn-brand">إرسال</button>
+                            </form>
                         </div>
                     </div>
                 </div>
-                <div class="card-footer bg-white">
-                    <form id="chat-form" class="d-flex gap-2">
-                        {% csrf_token %}
-                        <input type="text" id="question-input" class="form-control" placeholder="اكتب سؤالك هنا..." required>
-                        <button type="submit" id="send-btn" class="btn btn-brand">إرسال</button>
-                    </form>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="quiz-panel">
+            <div class="row justify-content-center">
+                <div class="col-md-10">
+                    <div id="quiz-config" class="card p-4 mb-4">
+                        <h4 class="brand-color fw-bold mb-3">إعدادات التمارين</h4>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">عدد الأسئلة</label>
+                                <select id="num-questions" class="form-select">
+                                    <option value="5">5</option>
+                                    <option value="10" selected>10</option>
+                                    <option value="20">20</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">المستوى</label>
+                                <select id="difficulty" class="form-select">
+                                    <option value="easy">سهل</option>
+                                    <option value="medium" selected>متوسط</option>
+                                    <option value="hard">صعب</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">نوع الأسئلة</label>
+                                <select id="question-type" class="form-select">
+                                    <option value="multiple_choice">اختيار من متعدد</option>
+                                    <option value="short_answer">إجابة قصيرة</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button id="generate-quiz-btn" class="btn btn-brand mt-3">توليد التمارين</button>
+                    </div>
+
+                    <div id="quiz-area" class="d-none">
+                        <div id="quiz-loading" class="text-center py-4 d-none">
+                            <div class="spinner-border text-brand" role="status"></div>
+                            <p class="mt-2">جارٍ توليد الأسئلة...</p>
+                        </div>
+                        <div id="questions-container"></div>
+                        <div id="quiz-actions" class="d-none text-center mt-3">
+                            <button id="submit-quiz-btn" class="btn btn-brand btn-lg">تسليم الإجابات</button>
+                        </div>
+                        <div id="quiz-result" class="d-none mt-4">
+                            <div class="card p-4 text-center">
+                                <h3 class="brand-color fw-bold" id="result-score"></h3>
+                                <p id="result-detail" class="mt-2"></p>
+                                <button id="retry-quiz-btn" class="btn btn-outline-brand mt-2">حاول مرة أخرى</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -70,7 +131,6 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
     const messagesDiv = document.getElementById('chat-messages');
     const emptyMsg = document.getElementById('empty-msg');
     const loading = document.getElementById('loading-indicator');
-
     if (emptyMsg) emptyMsg.remove();
 
     const userBubble = document.createElement('div');
@@ -96,17 +156,11 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ question: question }),
         });
-
-        if (!resp.ok) {
-            aiContent.textContent = 'خطأ في الاتصال بالخادم';
-            loading.classList.add('d-none');
-            return;
-        }
+        if (!resp.ok) { aiContent.textContent = 'خطأ في الاتصال بالخادم'; loading.classList.add('d-none'); return; }
 
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
-
+        let buffer = '', fullText = '';
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -117,23 +171,163 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
-                        if (data.error) {
-                            aiContent.textContent = 'خطأ: ' + data.error;
-                        } else if (data.done) {
-                            loading.classList.add('d-none');
-                        } else if (data.token) {
-                            aiContent.textContent += data.token;
-                        }
-                    } catch (e) {}
+                        if (data.error) { fullText = 'خطأ: ' + data.error; aiContent.textContent = fullText; }
+                        else if (data.done) { loading.classList.add('d-none'); }
+                        else if (data.token) { fullText += data.token; aiContent.textContent = fullText; }
+                    } catch(e) {}
                 }
             }
         }
-    } catch (err) {
-        aiContent.textContent = 'حدث خطأ في الاتصال';
-    }
+        aiContent.innerHTML = fullText;
+    } catch (err) { aiContent.textContent = 'حدث خطأ في الاتصال'; }
 
     loading.classList.add('d-none');
+    if (window.MathJax) MathJax.typesetPromise();
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
+
+let currentQuestions = [];
+
+document.getElementById('generate-quiz-btn').addEventListener('click', async function() {
+    const numQuestions = document.getElementById('num-questions').value;
+    const difficulty = document.getElementById('difficulty').value;
+    const questionType = document.getElementById('question-type').value;
+
+    document.getElementById('quiz-config').classList.add('d-none');
+    document.getElementById('quiz-area').classList.remove('d-none');
+    document.getElementById('quiz-loading').classList.remove('d-none');
+    document.getElementById('questions-container').innerHTML = '';
+    document.getElementById('quiz-actions').classList.add('d-none');
+    document.getElementById('quiz-result').classList.add('d-none');
+
+    try {
+        const resp = await fetch('/api/generate-quiz/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ num_questions: numQuestions, difficulty: difficulty, question_type: questionType }),
+        });
+        const data = await resp.json();
+        document.getElementById('quiz-loading').classList.add('d-none');
+
+        if (data.error) {
+            document.getElementById('questions-container').innerHTML = '<div class="alert alert-danger">' + data.error + '</div>';
+            return;
+        }
+
+        currentQuestions = data.questions;
+        renderQuestions(currentQuestions, questionType);
+        document.getElementById('quiz-actions').classList.remove('d-none');
+    } catch (err) {
+        document.getElementById('quiz-loading').classList.add('d-none');
+        document.getElementById('questions-container').innerHTML = '<div class="alert alert-danger">حدث خطأ في توليد الأسئلة</div>';
+    }
+});
+
+function renderQuestions(questions, type) {
+    const container = document.getElementById('questions-container');
+    container.innerHTML = '';
+    questions.forEach((q, i) => {
+        const card = document.createElement('div');
+        card.className = 'card p-3 mb-3';
+        card.id = 'q-card-' + i;
+
+        let inputHtml = '';
+        if (type === 'multiple_choice' && q.options) {
+            q.options.forEach((opt, j) => {
+                inputHtml += '<div class="form-check mb-1">';
+                inputHtml += '<input class="form-check-input" type="radio" name="q-' + i + '" value="' + opt.replace(/"/g, '&quot;') + '" id="q-' + i + '-opt-' + j + '">';
+                inputHtml += '<label class="form-check-label" for="q-' + i + '-opt-' + j + '">' + opt + '</label>';
+                inputHtml += '</div>';
+            });
+        } else {
+            inputHtml += '<input type="text" class="form-control" id="q-' + i + '-input" placeholder="اكتب إجابتك هنا">';
+        }
+
+        card.innerHTML = '<h6 class="fw-bold mb-2">' + (i + 1) + '. ' + q.question + '</h6>' + inputHtml;
+        container.appendChild(card);
+    });
+    if (window.MathJax) MathJax.typesetPromise();
+}
+
+document.getElementById('submit-quiz-btn').addEventListener('click', async function() {
+    const type = document.getElementById('question-type').value;
+    let correct = 0;
+    const total = currentQuestions.length;
+
+    if (type === 'multiple_choice') {
+        currentQuestions.forEach((q, i) => {
+            const selected = document.querySelector('input[name="q-' + i + '"]:checked');
+            const card = document.getElementById('q-card-' + i);
+            if (selected) {
+                const isCorrect = selected.value === q.correct_answer;
+                if (isCorrect) correct++;
+                card.style.borderRight = isCorrect ? '4px solid #198754' : '4px solid #dc3545';
+            } else {
+                card.style.borderRight = '4px solid #ffc107';
+            }
+        });
+        showResult(correct, total, []);
+    } else {
+        document.getElementById('submit-quiz-btn').disabled = true;
+        document.getElementById('submit-quiz-btn').textContent = 'جاري التصحيح...';
+        const results = [];
+        for (let i = 0; i < currentQuestions.length; i++) {
+            const input = document.getElementById('q-' + i + '-input');
+            const answer = input ? input.value.trim() : '';
+            const card = document.getElementById('q-card-' + i);
+            try {
+                const resp = await fetch('/api/grade-short-answer/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: currentQuestions[i].question, correct_answer: currentQuestions[i].correct_answer, student_answer: answer }),
+                });
+                const data = await resp.json();
+                if (data.correct) correct++;
+                results.push({ index: i, answer: answer, correct: data.correct, feedback: data.feedback });
+                card.style.borderRight = data.correct ? '4px solid #198754' : '4px solid #dc3545';
+                if (!data.correct && data.feedback) {
+                    const fb = document.createElement('small');
+                    fb.className = 'text-danger d-block mt-1';
+                    fb.innerHTML = data.feedback;
+                    card.appendChild(fb);
+                }
+            } catch(e) {
+                card.style.borderRight = '4px solid #ffc107';
+            }
+        }
+        document.getElementById('submit-quiz-btn').disabled = false;
+        document.getElementById('submit-quiz-btn').textContent = 'تسليم الإجابات';
+        if (window.MathJax) MathJax.typesetPromise();
+        showResult(correct, total, results);
+    }
+});
+
+async function showResult(correct, total, results) {
+    document.getElementById('quiz-result').classList.remove('d-none');
+    document.getElementById('result-score').textContent = 'النتيجة: ' + correct + ' / ' + total;
+    const pct = Math.round((correct / total) * 100);
+    document.getElementById('result-detail').textContent = pct >= 70 ? 'أحسنت! أداء ممتاز' : 'حاول مرة أخرى لتحسين نتائجك';
+    try {
+        await fetch('/api/save-quiz-result/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score: correct, total: total }),
+        });
+    } catch(e) {}
+}
+
+document.getElementById('retry-quiz-btn').addEventListener('click', function() {
+    document.getElementById('quiz-area').classList.add('d-none');
+    document.getElementById('quiz-config').classList.remove('d-none');
+    currentQuestions = [];
+});
 </script>
+
+<style>
+.text-brand { color: #4F46E5; }
+.btn-outline-brand { color: #4F46E5; border-color: #4F46E5; background: transparent; }
+.btn-outline-brand:hover { background: #4F46E5; color: #fff; }
+.nav-tabs .nav-link { color: #6b7280; }
+.nav-tabs .nav-link.active { color: #4F46E5; border-bottom: 3px solid #4F46E5; }
+</style>
 {% endblock %}

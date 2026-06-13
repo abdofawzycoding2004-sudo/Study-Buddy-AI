@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}تسجيل مدرس{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card p-4">
+                <h3 class="fw-bold brand-color text-center mb-4">تسجيل مدرس جديد</h3>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <h5 class="fw-bold mb-3 brand-color">المعلومات الشخصية</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+                            {{ form.email }}
+                            {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors }}</div>{% endif %}
+                            {% if form.email.help_text %}<div class="form-text">{{ form.email.help_text }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+                            <input type="text" name="username" class="form-control" placeholder="اسم المستخدم" dir="rtl" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">الاسم الأول <span class="text-danger">*</span></label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">اسم العائلة <span class="text-danger">*</span></label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
+                            {{ form.password1 }}
+                            {% if form.password1.help_text %}<div class="form-text">{{ form.password1.help_text }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">تأكيد كلمة المرور <span class="text-danger">*</span></label>
+                            {{ form.password2 }}
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold mb-3 brand-color">المعلومات الوظيفية</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">الرقم الوظيفي <span class="text-danger">*</span></label>
+                            {{ form.employee_id }}
+                            {% if form.employee_id.help_text %}<div class="form-text">{{ form.employee_id.help_text }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">المدرسة <span class="text-danger">*</span></label>
+                            {{ form.school }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">تاريخ التعيين <span class="text-danger">*</span></label>
+                            {{ form.hire_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">سنوات الخبرة</label>
+                            {{ form.experience_years }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">الاختصاص</label>
+                            {{ form.specialization }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">رقم المكتب</label>
+                            {{ form.office_room }}
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">المواد الدراسية <span class="text-danger">*</span></label>
+                            {{ form.subjects }}
+                            {% if form.subjects.help_text %}<div class="form-text">{{ form.subjects.help_text }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">المؤهلات <span class="text-danger">*</span></label>
+                            {{ form.qualifications }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-brand w-100">تسجيل</button>
+                        <a href="{% url 'login' %}" class="btn btn-outline-secondary w-100">لدي حساب بالفعل</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
