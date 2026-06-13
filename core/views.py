@@ -9,9 +9,10 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.contrib import messages
 from django.http import StreamingHttpResponse, JsonResponse
 from django.db.models import Count, Avg
-from .forms import TeacherRegistrationForm, StudentRegistrationForm
 from .models import Document, ChatMessage, QuizAttempt
 from .utils import extract_text, chunk_text, store_document_chunks, query_similar_chunks, ask_llm_stream, generate_quiz, grade_short_answer
+from school_system.forms import TeacherRegistrationForm, StudentRegistrationForm
+from school_system.models import TeacherProfile, StudentProfile
 
 
 def home(request):
@@ -27,13 +28,27 @@ def register_teacher(request):
     if request.method == 'POST':
         form = TeacherRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user = form.save(commit=False)
+            user.role = 'teacher'
+            user.save()
+            TeacherProfile.objects.create(
+                user=user,
+                employee_id=form.cleaned_data['employee_id'],
+                school=form.cleaned_data['school'],
+                qualifications=form.cleaned_data['qualifications'],
+                experience_years=form.cleaned_data['experience_years'],
+                specialization=form.cleaned_data.get('specialization', ''),
+                office_room=form.cleaned_data.get('office_room', ''),
+                hire_date=form.cleaned_data['hire_date'],
+            )
+            tp = TeacherProfile.objects.get(user=user)
+            tp.subjects.set(form.cleaned_data['subjects'])
             login(request, user)
             messages.success(request, 'تم إنشاء الحساب بنجاح')
             return redirect('teacher_dashboard')
     else:
         form = TeacherRegistrationForm()
-    return render(request, 'register.html', {'form': form, 'role': 'teacher'})
+    return render(request, 'registration/teacher_register.html', {'form': form})
 
 
 @ensure_csrf_cookie
@@ -41,13 +56,33 @@ def register_student(request):
     if request.method == 'POST':
         form = StudentRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user = form.save(commit=False)
+            user.role = 'student'
+            user.save()
+            classroom = form.cleaned_data['classroom']
+            StudentProfile.objects.create(
+                user=user,
+                student_id=form.cleaned_data['student_id'],
+                school=form.cleaned_data['school'],
+                classroom=classroom,
+                grade=form.cleaned_data['grade'],
+                date_of_birth=form.cleaned_data['date_of_birth'],
+                gender=form.cleaned_data['gender'],
+                address=form.cleaned_data.get('address', ''),
+                parent_name=form.cleaned_data['parent_name'],
+                parent_phone=form.cleaned_data['parent_phone'],
+                parent_email=form.cleaned_data.get('parent_email', ''),
+                emergency_contact_name=form.cleaned_data['emergency_contact_name'],
+                emergency_contact_phone=form.cleaned_data['emergency_contact_phone'],
+            )
+            classroom.current_enrollment += 1
+            classroom.save()
             login(request, user)
             messages.success(request, 'تم إنشاء الحساب بنجاح')
             return redirect('student_dashboard')
     else:
         form = StudentRegistrationForm()
-    return render(request, 'register.html', {'form': form, 'role': 'student'})
+    return render(request, 'registration/student_register.html', {'form': form})
 
 
 @ensure_csrf_cookie
