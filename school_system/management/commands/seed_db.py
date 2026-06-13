@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import date
 from school_system.models import (
     School, Grade, ClassRoom, Subject, TeacherProfile, StudentProfile,
-    TimetableSlot, LiveClassSession,
+    TimetableSlot, LiveClassSession, DocumentCategory,
 )
 from teacher_panel.models import Course as TPCourse, Module as TPModule, Category as TPCategory
 
@@ -15,8 +15,32 @@ class Command(BaseCommand):
     help = 'Seed the database with example school data'
 
     def handle(self, *args, **options):
-        if School.objects.exists():
-            self.stdout.write(self.style.WARNING('Database already seeded. Skipping.'))
+        already_seeded = School.objects.exists()
+        if already_seeded:
+            self.stdout.write(self.style.WARNING('Main data already seeded. Creating document categories only.'))
+
+        # ── Document Categories (always created) ──
+        categories_data = [
+            ('ملاحظات المحاضرات', 'ملاحظات وملخصات الدروس', '#4F46E5', 'fa-book', 1),
+            ('الواجبات', 'واجبات منزلية وتكاليف دراسية', '#10B981', 'fa-pencil', 2),
+            ('الاختبارات', 'اختبارات ونماذج امتحانات سابقة', '#F59E0B', 'fa-file-text', 3),
+            ('مراجع ودروس', 'مراجع وكتب ومواد إثرائية', '#EF4444', 'fa-folder', 4),
+            ('النشاطات', 'أنشطة صفية ولاصفية', '#8B5CF6', 'fa-tasks', 5),
+            ('إعلانات', 'إعلانات وتعميمات مهمة', '#EC4899', 'fa-bullhorn', 6),
+        ]
+        for name, desc, color, icon, order in categories_data:
+            DocumentCategory.objects.get_or_create(
+                name=name,
+                defaults={
+                    'description': desc,
+                    'color': color,
+                    'icon': icon,
+                    'order': order,
+                },
+            )
+        self.stdout.write(f'Created {len(categories_data)} document categories')
+
+        if already_seeded:
             return
 
         # ── School ──
