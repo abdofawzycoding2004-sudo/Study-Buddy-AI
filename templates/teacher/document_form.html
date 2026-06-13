@@ -73,7 +73,6 @@
             <div class="mb-3">
               <label class="form-label fw-medium">{{ form.grade.label }}</label>
               {{ form.grade }}
-              <script>document.getElementById('id_grade')?.addEventListener('change', function(){ this.form.submit(); });</script>
             </div>
             <div class="mb-3">
               <label class="form-label fw-medium">{{ form.allowed_classes.label }}</label>
@@ -107,4 +106,63 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'js/documents.js' %}"></script>
+<script>
+(function() {
+  var gradeEl = document.getElementById('id_grade');
+  var classEl = document.getElementById('id_allowed_classes');
+  var studentEl = document.getElementById('id_allowed_students');
+
+  function saveSelected(select) {
+    return Array.from(select.selectedOptions).map(function(o) { return o.value; });
+  }
+  function restoreSelected(select, vals) {
+    Array.from(select.options).forEach(function(o) {
+      o.selected = vals.indexOf(o.value) !== -1;
+    });
+  }
+
+  function loadClasses(gradeId) {
+    var saved = saveSelected(classEl);
+    if (!gradeId) { classEl.innerHTML = ''; studentEl.innerHTML = ''; return; }
+    fetch('/api/grade-classrooms/?grade_id=' + gradeId)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        classEl.innerHTML = '';
+        data.forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.id; opt.textContent = c.name;
+          if (saved.indexOf(String(c.id)) !== -1) opt.selected = true;
+          classEl.appendChild(opt);
+        });
+        loadStudents();
+      });
+  }
+
+  function loadStudents() {
+    var saved = saveSelected(studentEl);
+    var ids = Array.from(classEl.selectedOptions).map(function(o) { return o.value; });
+    if (!ids.length) { studentEl.innerHTML = ''; return; }
+    Promise.all(ids.map(function(id) {
+      return fetch('/api/classroom-students/?classroom_id=' + id).then(function(r) { return r.json(); });
+    })).then(function(results) {
+      var seen = {};
+      studentEl.innerHTML = '';
+      results.forEach(function(arr) {
+        arr.forEach(function(s) {
+          if (!seen[s.id]) {
+            seen[s.id] = true;
+            var opt = document.createElement('option');
+            opt.value = s.id; opt.textContent = s.full_name;
+            if (saved.indexOf(String(s.id)) !== -1) opt.selected = true;
+            studentEl.appendChild(opt);
+          }
+        });
+      });
+    });
+  }
+
+  if (gradeEl) gradeEl.addEventListener('change', function() { loadClasses(this.value); });
+  if (classEl) classEl.addEventListener('change', loadStudents);
+})();
+</script>
 {% endblock %}
