@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from .models import (
     TimetableSlot, LiveClassSession, AttendanceRecord,
-    StudentProfile, ClassRoom, School, Grade,
+    StudentProfile, ClassRoom, School, Grade, Subject,
 )
 from .forms import TimetableSlotForm, LiveClassSessionForm
 from .mixins import TeacherRequiredMixin

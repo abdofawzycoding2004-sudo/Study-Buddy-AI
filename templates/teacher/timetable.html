@@ -15,10 +15,7 @@
                 Total: <strong>{{ total_hours }}h</strong> across {{ total_slots }} slots
             </p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'timetable_create' %}" class="btn btn-brand">+ Add New Slot</a>
-            <a href="{% url 'teacher_classroom_create' %}" class="btn btn-outline-brand">+ New Class</a>
-        </div>
+        <a href="{% url 'timetable_create' %}" class="btn btn-brand">+ Add New Slot</a>
     </div>
 
     <div class="timetable-grid">
