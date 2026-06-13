@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from .models import (
     TimetableSlot, LiveClassSession, AttendanceRecord,
-    StudentProfile, ClassRoom,
+    StudentProfile, ClassRoom, School, Grade,
 )
 from .forms import TimetableSlotForm, LiveClassSessionForm
 from .mixins import TeacherRequiredMixin
@@ -310,3 +310,38 @@ class BulkAttendanceSaveView(TeacherRequiredMixin, View):
         session.save(update_fields=['attendance_taken', 'updated_at'])
 
         return JsonResponse({'success': True, 'message': 'Attendance saved successfully.'})
+
+
+def get_school_subjects(request):
+    school_id = request.GET.get('school_id')
+    if not school_id:
+        return JsonResponse([], safe=False)
+    subjects = Subject.objects.filter(schools__id=school_id).values('id', 'name', 'code')
+    return JsonResponse(list(subjects), safe=False)
+
+
+class ClassRoomCreateView(TeacherRequiredMixin, CreateView):
+    model = ClassRoom
+    template_name = 'teacher/classroom_form.html'
+    fields = ['grade', 'name', 'room_number', 'capacity']
+    success_url = reverse_lazy('teacher_timetable')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        teacher = self.request.user.teacher_profile
+        form.fields['grade'].queryset = Grade.objects.filter(
+            school=teacher.school, is_active=True
+        )
+        form.fields['grade'].widget.attrs['class'] = 'form-control'
+        form.fields['name'].widget.attrs['class'] = 'form-control'
+        form.fields['name'].widget.attrs['dir'] = 'rtl'
+        form.fields['room_number'].widget.attrs['class'] = 'form-control'
+        form.fields['capacity'].widget.attrs['class'] = 'form-control'
+        form.fields['capacity'].initial = 30
+        return form
+
+    def form_valid(self, form):
+        teacher = self.request.user.teacher_profile
+        form.instance.grade = form.cleaned_data['grade']
+        messages.success(self.request, f'Class {form.instance.name} created.')
+        return super().form_valid(form)

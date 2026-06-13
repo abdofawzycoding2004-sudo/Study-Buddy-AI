@@ -100,12 +100,12 @@ class TeacherRegistrationForm(CustomUserCreationForm):
         help_text='Select your school.',
     )
     subjects = forms.ModelMultipleChoiceField(
-        queryset=Subject.objects.all(),
+        queryset=Subject.objects.none(),
         widget=forms.SelectMultiple(attrs={
             'class': 'form-control',
             'size': '6',
         }),
-        help_text='Hold Ctrl/Cmd to select multiple.',
+        help_text='Select a school first, then choose subjects.',
     )
     qualifications = forms.CharField(
         widget=forms.Textarea(attrs={
@@ -143,6 +143,17 @@ class TeacherRegistrationForm(CustomUserCreationForm):
             'type': 'date',
         })
     )
+
+    def clean_subjects(self):
+        subjects = self.cleaned_data.get('subjects')
+        school = self.cleaned_data.get('school')
+        if subjects and school:
+            valid = Subject.objects.filter(
+                schools=school, pk__in=[s.pk for s in subjects]
+            )
+            if valid.count() != subjects.count():
+                raise ValidationError('All subjects must belong to the selected school.')
+        return subjects
 
     class Meta(CustomUserCreationForm.Meta):
         model = User

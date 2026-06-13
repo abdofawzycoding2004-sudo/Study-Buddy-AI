@@ -74,6 +74,7 @@
                             <label class="form-label">المواد الدراسية <span class="text-danger">*</span></label>
                             {{ form.subjects }}
                             {% if form.subjects.help_text %}<div class="form-text">{{ form.subjects.help_text }}</div>{% endif %}
+                            <div id="subjects-loading" class="text-muted small d-none">جاري تحميل المواد...</div>
                         </div>
                         <div class="col-md-12">
                             <label class="form-label">المؤهلات <span class="text-danger">*</span></label>
@@ -90,4 +91,50 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var schoolSelect = document.getElementById('id_school');
+    var subjectsSelect = document.getElementById('id_subjects');
+    var loading = document.getElementById('subjects-loading');
+
+    if (!schoolSelect || !subjectsSelect) return;
+
+    function loadSubjects(schoolId) {
+        subjectsSelect.innerHTML = '';
+        if (!schoolId) return;
+
+        loading.classList.remove('d-none');
+        fetch('/api/school-subjects/?school_id=' + schoolId)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                data.forEach(function (s) {
+                    var opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.name + ' (' + s.code + ')';
+                    subjectsSelect.appendChild(opt);
+                });
+            })
+            .catch(function () {
+                var opt = document.createElement('option');
+                opt.textContent = 'فشل تحميل المواد';
+                opt.disabled = true;
+                subjectsSelect.appendChild(opt);
+            })
+            .finally(function () {
+                loading.classList.add('d-none');
+            });
+    }
+
+    schoolSelect.addEventListener('change', function () {
+        loadSubjects(this.value);
+    });
+
+    if (schoolSelect.value) {
+        loadSubjects(schoolSelect.value);
+    }
+});
+</script>
 {% endblock %}
