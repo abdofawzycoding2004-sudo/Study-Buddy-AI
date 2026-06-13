@@ -45,9 +45,9 @@
                                 </ul>
                             </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">التقييمات</a>
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">الانشطه</a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'teacher_assessments' %}">جميع التقييمات</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'teacher_assessments' %}">جميع الانشطه</a></li>
                                     <li><a class="dropdown-item" href="{% url 'assessment_create' %}">إضافة تقييم جديد</a></li>
                                 </ul>
                             </li>
@@ -62,7 +62,7 @@
                             </li>
                         {% elif user.role == 'student' %}
                             <li class="nav-item"><a class="nav-link" href="{% url 'student_dashboard' %}">المساعد الذكي</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{% url 'student_assessments' %}">التقييمات</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'student_assessments' %}">الانشطه</a></li>
                         {% endif %}
                         <li class="nav-item"><span class="nav-link text-muted">مرحباً، {{ user.username }}</span></li>
                     {% endif %}
