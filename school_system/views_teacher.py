@@ -24,7 +24,7 @@ from .forms import (
     SubmissionReviewForm, DocumentShareForm,
 )
 from .mixins import TeacherRequiredMixin
-from .utils import AssessmentStatistics, get_file_type
+from .utils import AssessmentStatistics, get_file_type, ClassAnalytics, StudentAnalytics, TeacherAnalytics
 from .notifications import (
     notify_session_confirmed, notify_session_started, notify_session_cancelled,
 )
@@ -887,3 +887,179 @@ class DocumentAnalyticsView(TeacherRequiredMixin, TemplateView):
             'recent_logs': recent_logs,
         })
         return ctx
+
+
+# ─────────────────────── TEACHER DASHBOARD (Phase 5) ───────────────────────
+
+class TeacherDashboardView(TeacherRequiredMixin, TemplateView):
+    template_name = 'teacher/dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        teacher = self.request.user.teacher_profile
+        classes = teacher.get_assigned_classes()
+        now = timezone.now()
+        today = now.date()
+
+        total_students = TeacherAnalytics.get_total_students(teacher)
+
+        upcoming_classes = LiveClassSession.objects.filter(
+            timetable_slot__teacher=teacher,
+            session_date=today,
+            status__in=['CONFIRMED', 'IN_PROGRESS'],
+        ).select_related('timetable_slot__subject', 'timetable_slot__classroom').order_by('timetable_slot__start_time')
+
+        recent_assessments = Assessment.objects.filter(
+            teacher=teacher,
+            published_at__gte=now - timedelta(days=7),
+        ).select_related('subject', 'classroom').order_by('-published_at')
+
+        pending_grading = TeacherAnalytics.get_pending_grading_count(teacher)
+
+        attendance_rates = [ClassAnalytics.get_attendance_rate(c) for c in classes]
+        avg_attendance = round(sum(attendance_rates) / len(attendance_rates), 1) if attendance_rates else 0
+
+        performance_rates = [ClassAnalytics.get_average_grade(c) for c in classes]
+        avg_performance = round(sum(performance_rates) / len(performance_rates), 1) if performance_rates else 0
+
+        at_risk = []
+        for c in classes:
+            at_risk.extend(ClassAnalytics.get_struggling_students(c))
+        at_risk.sort(key=lambda x: x['average'])
+
+        class_performance = []
+        for c in classes:
+            class_performance.append({
+                'name': str(c),
+                'average': ClassAnalytics.get_average_grade(c),
+                'attendance': ClassAnalytics.get_attendance_rate(c),
+            })
+
+        import json
+        class_performance_json = json.dumps(class_performance, ensure_ascii=False)
+
+        ctx.update({
+            'teacher': teacher,
+            'classes': classes,
+            'total_students': total_students,
+            'upcoming_classes': upcoming_classes,
+            'recent_assessments': recent_assessments,
+            'pending_grading': pending_grading,
+            'avg_attendance': avg_attendance,
+            'avg_performance': avg_performance,
+            'at_risk_students': at_risk,
+            'class_performance': class_performance,
+            'class_performance_json': class_performance_json,
+        })
+        return ctx
+
+
+class ClassDetailView(TeacherRequiredMixin, DetailView):
+    model = ClassRoom
+    template_name = 'teacher/class_detail.html'
+    context_object_name = 'classroom'
+
+    def get_queryset(self):
+        teacher = self.request.user.teacher_profile
+        return teacher.get_assigned_classes()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        classroom = self.object
+        now = timezone.now()
+
+        students = StudentProfile.objects.filter(classroom=classroom).select_related('user')
+        student_list = []
+        for s in students:
+            student_list.append({
+                'student': s,
+                'average': StudentAnalytics.get_overall_average(s),
+                'attendance': StudentAnalytics.get_attendance_percentage(s),
+                'at_risk': StudentAnalytics.is_at_risk(s),
+            })
+
+        assessments = Assessment.objects.filter(classroom=classroom).select_related('subject').order_by('-published_at')
+
+        upcoming_sessions = LiveClassSession.objects.filter(
+            timetable_slot__classroom=classroom,
+            session_date__gte=now,
+            status__in=['CONFIRMED', 'IN_PROGRESS'],
+        ).select_related('timetable_slot__subject').order_by('session_date', 'timetable_slot__start_time')[:10]
+
+        stats = {
+            'avg_grade': ClassAnalytics.get_average_grade(classroom),
+            'attendance_rate': ClassAnalytics.get_attendance_rate(classroom),
+            'top_performers': ClassAnalytics.get_top_performers(classroom),
+            'struggling': ClassAnalytics.get_struggling_students(classroom),
+            'subject_breakdown': ClassAnalytics.get_subject_breakdown(classroom),
+            'trend': ClassAnalytics.get_performance_trend(classroom),
+        }
+
+        ctx.update({
+            'student_list': student_list,
+            'assessments': assessments,
+            'upcoming_sessions': upcoming_sessions,
+            'stats': stats,
+        })
+        return ctx
+
+
+class StudentPerformanceView(TeacherRequiredMixin, TemplateView):
+    template_name = 'teacher/student_performance.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        teacher = self.request.user.teacher_profile
+        student = get_object_or_404(StudentProfile, pk=self.kwargs['pk'])
+
+        if student.classroom not in teacher.get_assigned_classes():
+            from django.http import HttpResponseForbidden
+            raise PermissionError('This student is not in your classes.')
+
+        assessments = AssessmentSubmission.objects.filter(
+            student=student,
+        ).select_related('assignment__subject').order_by('-graded_at')
+
+        attendance_records = AttendanceRecord.objects.filter(
+            student=student,
+        ).select_related('session__timetable_slot__subject').order_by('-session__session_date')[:30]
+
+        statistics = {
+            'overall_average': StudentAnalytics.get_overall_average(student),
+            'attendance_percentage': StudentAnalytics.get_attendance_percentage(student),
+            'submission_rate': StudentAnalytics.get_submission_rate(student),
+            'subject_averages': StudentAnalytics.get_subject_averages(student),
+            'trend': StudentAnalytics.get_performance_trend(student),
+            'at_risk': StudentAnalytics.is_at_risk(student),
+        }
+
+        ctx.update({
+            'student': student,
+            'assessments': assessments,
+            'attendance_records': attendance_records,
+            'statistics': statistics,
+        })
+        return ctx
+
+
+class AnalyticsExportView(TeacherRequiredMixin, View):
+
+    def get(self, request):
+        teacher = request.user.teacher_profile
+        import csv
+        from django.http import HttpResponse
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="analytics_report.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Student', 'Class', 'Average Grade', 'Attendance %', 'At Risk'])
+
+        classes = teacher.get_assigned_classes()
+        for c in classes:
+            for s in StudentProfile.objects.filter(classroom=c).select_related('user'):
+                avg = StudentAnalytics.get_overall_average(s)
+                att = StudentAnalytics.get_attendance_percentage(s)
+                risk = 'Yes' if StudentAnalytics.is_at_risk(s) else 'No'
+                writer.writerow([s.full_name, str(c), avg, att, risk])
+
+        return response

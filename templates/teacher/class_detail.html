@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ classroom.name }} - EduMentor{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="h3 fw-bold mb-0">{{ classroom.name }}</h2>
+      <p class="text-muted mb-0">{{ classroom.grade.name }} · {{ classroom.current_enrollment }} طالب</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'assessment_create' %}" class="btn btn-brand">إنشاء تقييم</a>
+      <a href="{% url 'teacher_timetable' %}?grade_id={{ classroom.grade_id }}" class="btn btn-outline-secondary">عرض الجدول</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value">{{ stats.avg_grade }}%</div>
+        <div class="dash-label">متوسط الدرجات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value">{{ stats.attendance_rate }}%</div>
+        <div class="dash-label">معدل الحضور</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value">{% if stats.top_performers.0 %}{{ stats.top_performers.0.0.full_name }}{% else %}—{% endif %}</div>
+        <div class="dash-label">الأول</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value text-danger">{{ stats.struggling|length }}</div>
+        <div class="dash-label">بحاجة لدعم</div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs mb-4" id="classTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#students">الطلاب</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#assessments">التقييمات</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#analytics">التحليلات</a></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="students">
+      <div class="card p-3">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr><th>الطالب</th><th>المتوسط</th><th>الحضور</th><th>الحالة</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for item in student_list %}
+              <tr class="{% if item.at_risk %}risk-row{% endif %}">
+                <td>{{ item.student.full_name }}</td>
+                <td>{{ item.average }}%</td>
+                <td>{{ item.attendance }}%</td>
+                <td>{% if item.at_risk %}<span class="badge bg-danger pulse-badge">معرض للخطر</span>{% else %}<span class="badge bg-success">جيد</span>{% endif %}</td>
+                <td><a href="{% url 'student_performance' item.student.pk %}" class="btn btn-sm btn-outline-brand">عرض</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="assessments">
+      <div class="card p-3">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead><tr><th>التقييم</th><th>المادة</th><th>التاريخ</th><th>الحالة</th><th></th></tr></thead>
+            <tbody>
+              {% for a in assessments %}
+              <tr>
+                <td>{{ a.title }}</td>
+                <td>{{ a.subject.name }}</td>
+                <td>{{ a.due_date|date:"Y-m-d" }}</td>
+                <td>{% if a.is_published %}<span class="badge bg-success">منشور</span>{% else %}<span class="badge bg-warning">مسودة</span>{% endif %}</td>
+                <td><a href="{% url 'teacher_submissions' a.pk %}" class="btn btn-sm btn-outline-brand">عرض</a></td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-center text-muted">لا توجد تقييمات</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="analytics">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="card p-3">
+            <h5 class="fw-bold mb-3">أداء الطلاب (آخر 4 أسابيع)</h5>
+            <canvas id="chart-trend" height="200"></canvas>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3">
+            <h5 class="fw-bold mb-3">معدل المواد</h5>
+            <canvas id="chart-subjects" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+<script>
+var trendData = {{ stats.trend|safe }};
+var subjectData = {{ stats.subject_breakdown|safe }};
+</script>
+{% endblock %}

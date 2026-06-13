@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ student.full_name }} - Performance{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="h3 fw-bold mb-0">{{ student.full_name }}</h2>
+      <p class="text-muted mb-0">{{ student.student_id }} · {{ student.classroom }}</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'analytics_export' %}" class="btn btn-outline-brand">تحميل التقرير</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value {% if statistics.at_risk %}text-danger{% endif %}">{{ statistics.overall_average }}%</div>
+        <div class="dash-label">المتوسط العام</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value">{{ statistics.attendance_percentage }}%</div>
+        <div class="dash-label">معدل الحضور</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value">{{ statistics.submission_rate }}%</div>
+        <div class="dash-label">إنجاز التقييمات</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3 text-center">
+        <div class="dash-value">{{ assessments|length }}</div>
+        <div class="dash-label">التقييمات المقدمة</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-8">
+      <div class="card p-3">
+        <h5 class="fw-bold mb-3">الأداء خلال آخر 4 أسابيع</h5>
+        <canvas id="chart-trend" height="200"></canvas>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        <h5 class="fw-bold mb-3">معدل المواد</h5>
+        <canvas id="chart-subjects" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-3 mb-4">
+    <h5 class="fw-bold mb-3">سجل التقييمات</h5>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm">
+        <thead><tr><th>التقييم</th><th>المادة</th><th>التاريخ</th><th>الدرجة</th><th>النسبة</th><th>التقدير</th><th>ملاحظات</th></tr></thead>
+        <tbody>
+          {% for s in assessments %}
+          <tr>
+            <td>{{ s.assignment.title }}</td>
+            <td>{{ s.assignment.subject.name|default:"—" }}</td>
+            <td>{{ s.graded_at|date:"Y-m-d"|default:s.created_at|date:"Y-m-d" }}</td>
+            <td>{{ s.auto_calculated_score|floatformat:1 }} / {{ s.assignment.max_points }}</td>
+            <td>{{ s.final_grade_percentage|floatformat:1 }}%</td>
+            <td><span class="badge {% if s.final_grade_percentage >= 80 %}bg-success{% elif s.final_grade_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}">{{ s.grade_letter }}</span></td>
+            <td><small>{{ s.teacher_feedback|truncatechars:30|default:"—" }}</small></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted">لا توجد تقييمات</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card p-3">
+    <h5 class="fw-bold mb-3">سجل الحضور (آخر 30)</h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>التاريخ</th><th>الحصة</th><th>الحالة</th><th>ملاحظات</th></tr></thead>
+        <tbody>
+          {% for r in attendance_records %}
+          <tr>
+            <td>{{ r.session.session_date|date:"Y-m-d" }}</td>
+            <td>{{ r.session.timetable_slot.subject.name }}</td>
+            <td><span class="badge {% if r.status == 'PRESENT' %}bg-success{% elif r.status == 'ABSENT' %}bg-danger{% elif r.status == 'LATE' %}bg-warning{% else %}bg-info{% endif %}">{{ r.get_status_display }}</span></td>
+            <td><small>{{ r.notes|default:"—" }}</small></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted">لا توجد سجلات حضور</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+<script>
+var trendData = {{ statistics.trend|safe }};
+var subjectData = {{ statistics.subject_averages|safe }};
+</script>
+{% endblock %}

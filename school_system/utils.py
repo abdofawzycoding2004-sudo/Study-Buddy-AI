@@ -4,10 +4,14 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.db.models import Avg
+from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 
-from .models import AssessmentSubmission, Question
+from .models import (
+    AssessmentSubmission, Question,
+    AttendanceRecord, Assessment, LiveClassSession, DocumentShare,
+    StudentProfile,
+)
 
 
 class AutoGradingEngine:
@@ -210,3 +214,201 @@ def generate_unique_filename(instance, filename):
     ext = os.path.splitext(filename)[1].lower()
     safe_name = f"{uuid.uuid4().hex}_{timezone.now().strftime('%Y%m%d%H%M%S')}{ext}"
     return os.path.join('documents', timezone.now().strftime('%Y/%m/%d'), safe_name)
+
+
+# ─────────────────────── ANALYTICS ENGINE ───────────────────────
+
+class ClassAnalytics:
+
+    @staticmethod
+    def get_average_grade(classroom):
+        subs = AssessmentSubmission.objects.filter(
+            assignment__classroom=classroom, is_graded=True,
+        )
+        result = subs.aggregate(avg=Avg('auto_calculated_score'))
+        return round(result['avg'], 2) if result['avg'] else 0
+
+    @staticmethod
+    def get_attendance_rate(classroom, days=30):
+        cutoff = timezone.now() - timedelta(days=days)
+        records = AttendanceRecord.objects.filter(
+            student__classroom=classroom,
+            session__session_date__gte=cutoff,
+        )
+        total = records.count()
+        if total == 0:
+            return 0
+        present = records.filter(status__in=['PRESENT', 'LATE']).count()
+        return round((present / total) * 100, 1)
+
+    @staticmethod
+    def get_top_performers(classroom, limit=5):
+        students = StudentProfile.objects.filter(classroom=classroom)
+        results = []
+        for s in students:
+            avg = StudentAnalytics.get_overall_average(s)
+            results.append((s, avg))
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:limit]
+
+    @staticmethod
+    def get_struggling_students(classroom, threshold=50):
+        students = StudentProfile.objects.filter(classroom=classroom)
+        struggling = []
+        for s in students:
+            avg = StudentAnalytics.get_overall_average(s)
+            attendance = StudentAnalytics.get_attendance_percentage(s)
+            if avg < threshold or attendance < 75:
+                struggling.append({
+                    'student': s,
+                    'average': avg,
+                    'attendance': attendance,
+                    'reason': 'Low grades' if avg < threshold else 'Low attendance',
+                })
+        return struggling
+
+    @staticmethod
+    def get_subject_breakdown(classroom):
+        assessments = Assessment.objects.filter(classroom=classroom, is_published=True)
+        subjects = {}
+        for a in assessments:
+            name = a.subject.name if a.subject else 'General'
+            if name not in subjects:
+                subjects[name] = {'total': 0, 'count': 0}
+            subs = AssessmentSubmission.objects.filter(assignment=a, is_graded=True)
+            avg = subs.aggregate(avg=Avg('auto_calculated_score'))['avg'] or 0
+            subjects[name]['total'] += avg
+            subjects[name]['count'] += 1
+        result = {}
+        for name, data in subjects.items():
+            result[name] = round(data['total'] / data['count'], 2) if data['count'] else 0
+        return result
+
+    @staticmethod
+    def get_performance_trend(classroom, weeks=4):
+        trends = []
+        for i in range(weeks):
+            start = timezone.now() - timedelta(weeks=i + 1)
+            end = timezone.now() - timedelta(weeks=i)
+            subs = AssessmentSubmission.objects.filter(
+                assignment__classroom=classroom,
+                is_graded=True,
+                graded_at__gte=start,
+                graded_at__lt=end,
+            )
+            avg = subs.aggregate(avg=Avg('auto_calculated_score'))['avg'] or 0
+            trends.insert(0, round(avg, 2))
+        return trends
+
+
+class StudentAnalytics:
+
+    @staticmethod
+    def get_overall_average(student):
+        subs = AssessmentSubmission.objects.filter(student=student, is_graded=True)
+        result = subs.aggregate(avg=Avg('auto_calculated_score'))
+        return round(result['avg'], 2) if result['avg'] else 0
+
+    @staticmethod
+    def get_attendance_percentage(student, days=30):
+        cutoff = timezone.now() - timedelta(days=days)
+        records = AttendanceRecord.objects.filter(
+            student=student, session__session_date__gte=cutoff,
+        )
+        total = records.count()
+        if total == 0:
+            return 0
+        present = records.filter(status__in=['PRESENT', 'LATE']).count()
+        return round((present / total) * 100, 1)
+
+    @staticmethod
+    def get_subject_averages(student):
+        subs = AssessmentSubmission.objects.filter(student=student, is_graded=True).select_related(
+            'assignment__subject',
+        )
+        subjects = {}
+        for s in subs:
+            name = s.assignment.subject.name if s.assignment.subject else 'General'
+            if name not in subjects:
+                subjects[name] = {'total': 0, 'count': 0}
+            subjects[name]['total'] += (s.auto_calculated_score or 0)
+            subjects[name]['count'] += 1
+        result = {}
+        for name, data in subjects.items():
+            result[name] = round(data['total'] / data['count'], 2) if data['count'] else 0
+        return result
+
+    @staticmethod
+    def get_performance_trend(student, weeks=4):
+        trends = []
+        for i in range(weeks):
+            start = timezone.now() - timedelta(weeks=i + 1)
+            end = timezone.now() - timedelta(weeks=i)
+            subs = AssessmentSubmission.objects.filter(
+                student=student, is_graded=True,
+                graded_at__gte=start, graded_at__lt=end,
+            )
+            avg = subs.aggregate(avg=Avg('auto_calculated_score'))['avg'] or 0
+            trends.insert(0, round(avg, 2))
+        return trends
+
+    @staticmethod
+    def get_submission_rate(student):
+        total_asst = Assessment.objects.filter(
+            classroom=student.classroom, is_published=True,
+        ).count()
+        if total_asst == 0:
+            return 0
+        submitted = AssessmentSubmission.objects.filter(student=student).count()
+        return round((submitted / total_asst) * 100, 1)
+
+    @staticmethod
+    def is_at_risk(student):
+        avg = StudentAnalytics.get_overall_average(student)
+        attendance = StudentAnalytics.get_attendance_percentage(student)
+        return avg < 50 or attendance < 75
+
+
+class TeacherAnalytics:
+
+    @staticmethod
+    def get_total_students(teacher):
+        classes = teacher.get_assigned_classes()
+        return StudentProfile.objects.filter(classroom__in=classes).count()
+
+    @staticmethod
+    def get_average_class_performance(teacher):
+        classes = teacher.get_assigned_classes()
+        if not classes:
+            return 0
+        total, count = 0, 0
+        for c in classes:
+            avg = ClassAnalytics.get_average_grade(c)
+            if avg:
+                total += avg
+                count += 1
+        return round(total / count, 2) if count else 0
+
+    @staticmethod
+    def get_pending_grading_count(teacher):
+        return AssessmentSubmission.objects.filter(
+            assignment__teacher=teacher,
+            is_verified_by_teacher=False,
+        ).count()
+
+    @staticmethod
+    def get_upcoming_sessions_count(teacher, days=7):
+        now = timezone.now()
+        end = now + timedelta(days=days)
+        return LiveClassSession.objects.filter(
+            timetable_slot__teacher=teacher,
+            session_date__gte=now,
+            session_date__lte=end,
+            status__in=['CONFIRMED', 'IN_PROGRESS'],
+        ).count()
+
+    @staticmethod
+    def get_storage_usage(teacher):
+        docs = DocumentShare.objects.filter(owner_teacher=teacher)
+        total = docs.aggregate(total=Sum('file_size'))['total'] or 0
+        return round(total / (1024 * 1024), 2)

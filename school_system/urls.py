@@ -13,6 +13,8 @@ from .views_teacher import (
     SubmissionGradeView, BulkGradeView,
     DocumentListView, DocumentCreateView, DocumentUpdateView,
     DocumentDeleteView, DocumentDetailView, DocumentAnalyticsView,
+    TeacherDashboardView, ClassDetailView, StudentPerformanceView,
+    AnalyticsExportView,
 )
 from .views_student import (
     StudentAssessmentListView, StudentAssessmentDetailView,
@@ -68,4 +70,10 @@ urlpatterns = [
     path('student/documents/', StudentDocumentListView.as_view(), name='student_documents'),
     path('student/documents/<int:pk>/download/', StudentDocumentDownloadView.as_view(), name='document_download'),
     path('student/documents/<int:pk>/view/', StudentDocumentViewView.as_view(), name='document_view'),
+
+    # Teacher Dashboard (Phase 5)
+    path('teacher/dashboard/', TeacherDashboardView.as_view(), name='teacher_dashboard_v2'),
+    path('teacher/classes/<int:pk>/', ClassDetailView.as_view(), name='class_detail'),
+    path('teacher/students/<int:pk>/performance/', StudentPerformanceView.as_view(), name='student_performance'),
+    path('teacher/analytics/export/', AnalyticsExportView.as_view(), name='analytics_export'),
 ]

@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Teacher Dashboard - EduMentor{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h3 fw-bold mb-0">مرحباً، {{ teacher.full_name }}</h2>
+    <a href="{% url 'analytics_export' %}" class="btn btn-outline-brand">تصدير التقرير</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card dash-card p-3">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="dash-label">إجمالي الطلاب</div>
+            <div class="dash-value">{{ total_students }}</div>
+          </div>
+          <span class="dash-icon dash-icon-blue">👥</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="dash-label">الفصول الدراسية</div>
+            <div class="dash-value">{{ classes|length }}</div>
+          </div>
+          <span class="dash-icon dash-icon-green">🏫</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="dash-label">بانتظار التصحيح</div>
+            <div class="dash-value">{{ pending_grading }}</div>
+          </div>
+          <span class="dash-icon dash-icon-orange">📝</span>
+        </div>
+        <a href="{% url 'teacher_assessments' %}" class="stretched-link"></a>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card dash-card p-3">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="dash-label">متوسط الأداء</div>
+            <div class="dash-value">{{ avg_performance }}%</div>
+          </div>
+          <span class="dash-icon dash-icon-purple">📊</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card p-3 mb-3">
+        <h5 class="fw-bold mb-3">الحصص القادمة اليوم</h5>
+        {% for s in upcoming_classes %}
+        <div class="upcoming-item d-flex justify-content-between align-items-center py-2 border-bottom">
+          <div>
+            <strong>{{ s.timetable_slot.subject.name }}</strong><br>
+            <small class="text-muted">{{ s.timetable_slot.classroom }} · {{ s.timetable_slot.start_time|time:"H:i" }}</small>
+          </div>
+          <a href="{% url 'live_session_control' s.pk %}" class="btn btn-sm btn-brand">بدء</a>
+        </div>
+        {% empty %}
+        <p class="text-muted mb-0">لا توجد حصص قادمة اليوم</p>
+        {% endfor %}
+      </div>
+
+      <div class="card p-3 mb-3">
+        <h5 class="fw-bold mb-3">التقييمات الأخيرة</h5>
+        {% for a in recent_assessments %}
+        <div class="py-2 border-bottom">
+          <a href="{% url 'teacher_submissions' a.pk %}" class="text-decoration-none fw-medium">{{ a.title }}</a><br>
+          <small class="text-muted">{{ a.classroom }} · {{ a.due_date|date:"Y-m-d" }}</small>
+        </div>
+        {% empty %}
+        <p class="text-muted mb-0">لا توجد تقييمات أخيرة</p>
+        {% endfor %}
+      </div>
+
+      <div class="card p-3">
+        <h5 class="fw-bold mb-3">إجراءات سريعة</h5>
+        <div class="d-grid gap-2">
+          <a href="{% url 'assessment_create' %}" class="btn btn-brand">إنشاء تقييم جديد</a>
+          <a href="{% url 'document_create' %}" class="btn btn-outline-brand">رفع ملف</a>
+          <a href="{% url 'teacher_timetable' %}" class="btn btn-outline-secondary">عرض الجدول</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card p-3 mb-3">
+        <h5 class="fw-bold mb-3">الطلاب المعرضون للخطر</h5>
+        {% if at_risk_students %}
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
+              <tr><th>الطالب</th><th>الفصل</th><th>المتوسط</th><th>الحضور</th><th>السبب</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for item in at_risk_students %}
+              <tr class="risk-row">
+                <td>{{ item.student.full_name }}</td>
+                <td>{{ item.student.classroom }}</td>
+                <td>{{ item.average }}%</td>
+                <td>{{ item.attendance }}%</td>
+                <td><span class="badge bg-danger pulse-badge">{{ item.reason }}</span></td>
+                <td><a href="{% url 'student_performance' item.student.pk %}" class="btn btn-sm btn-outline-danger">عرض</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">لا يوجد طلاب معرضون للخطر</p>
+        {% endif %}
+      </div>
+
+      <div class="card p-3 mb-3">
+        <h5 class="fw-bold mb-3">أداء الفصول</h5>
+        <canvas id="chart-class-performance" height="200"></canvas>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="card p-3">
+            <h5 class="fw-bold mb-3">معدل الحضور</h5>
+            <canvas id="chart-attendance" height="200"></canvas>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3">
+            <h5 class="fw-bold mb-3">إكمال التقييمات</h5>
+            <canvas id="chart-completion" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+<script>
+var classPerfData = {{ class_performance_json|safe }};
+var attRate = {{ avg_attendance }};
+var perfRate = {{ avg_performance }};
+</script>
+{% endblock %}
