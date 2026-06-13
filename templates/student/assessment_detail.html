@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ assessment.title }} - EduMentor{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/assessment.css' %}">{% endblock %}
+{% block content %}
+<div class="container py-4"><div class="row justify-content-center"><div class="col-lg-8">
+  <div class="card mb-4"><div class="card-body">
+    <div class="d-flex justify-content-between">
+      <div><h2 class="h4 mb-1">{{ assessment.title }}</h2>
+        <p class="text-muted mb-0">{{ assessment.subject.name }} — {{ assessment.get_type_display }}</p>
+      </div>
+      <div class="text-end">
+        <span class="badge bg-info fs-6">{{ assessment.max_points }} pts</span>
+        {% if assessment.time_limit_mins %}<span class="badge bg-warning fs-6 ms-1">{{ assessment.time_limit_mins }} min</span>{% endif %}
+      </div>
+    </div>
+    <hr>
+    <h6 class="fw-bold">Instructions</h6>
+    <p>{{ assessment.instructions|linebreaks }}</p>
+    <p class="text-muted small">Due: {{ assessment.due_date|date:"d M Y H:i" }}</p>
+  </div></div>
+
+  {% if can_submit %}
+    <a href="{% url 'student_assessment_submit' assessment.pk %}" class="btn btn-brand btn-lg w-100">Start Assessment</a>
+  {% elif is_overdue %}
+    <div class="alert alert-danger">This assessment is overdue.</div>
+  {% elif submission %}
+    <div class="alert alert-info">You submitted this assessment on {{ submission.submitted_at|date:"d M Y H:i" }}.
+      <a href="{% url 'student_submission_result' submission.pk %}" class="alert-link">View Result</a>
+    </div>
+  {% else %}
+    <div class="alert alert-secondary">This assessment is not yet available.</div>
+  {% endif %}
+</div></div></div>
+{% endblock %}

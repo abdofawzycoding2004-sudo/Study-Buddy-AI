@@ -30,3 +30,7 @@ class SuperAdminRequiredMixin(RoleRequiredMixin):
 
 class TeacherRequiredMixin(RoleRequiredMixin):
     required_role = 'teacher'
+
+
+class StudentRequiredMixin(RoleRequiredMixin):
+    required_role = 'student'

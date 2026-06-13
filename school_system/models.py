@@ -452,3 +452,286 @@ class AttendanceRecord(models.Model):
 
     def __str__(self):
         return f"{self.student} - {self.session} - {self.get_status_display()}"
+
+
+class Assessment(models.Model):
+    ASSESSMENT_TYPES = [
+        ('QUIZ', 'Quiz'),
+        ('HOMEWORK', 'Homework'),
+    ]
+
+    type = models.CharField(max_length=20, choices=ASSESSMENT_TYPES)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    instructions = models.TextField()
+    subject = models.ForeignKey(
+        Subject, on_delete=models.CASCADE, related_name='assessments'
+    )
+    grade = models.ForeignKey(
+        Grade, on_delete=models.CASCADE, related_name='assessments'
+    )
+    classroom = models.ForeignKey(
+        ClassRoom, on_delete=models.CASCADE, related_name='assessments',
+        null=True, blank=True,
+    )
+    target_students = models.ManyToManyField(
+        StudentProfile, blank=True, related_name='targeted_assessments'
+    )
+    teacher = models.ForeignKey(
+        TeacherProfile, on_delete=models.CASCADE, related_name='assessments'
+    )
+    due_date = models.DateTimeField()
+    available_from = models.DateTimeField(auto_now_add=True)
+    max_points = models.PositiveIntegerField(default=100)
+    time_limit_mins = models.PositiveIntegerField(null=True, blank=True)
+    allow_late_submission = models.BooleanField(default=False)
+    late_penalty_percent = models.PositiveIntegerField(default=10)
+    show_correct_answers = models.BooleanField(default=True)
+    show_correct_answers_after = models.DateTimeField(null=True, blank=True)
+    is_published = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-due_date']
+
+    @property
+    def is_active(self):
+        now = timezone.now()
+        return self.is_published and now >= self.available_from
+
+    @property
+    def is_overdue(self):
+        return timezone.now() > self.due_date
+
+    @property
+    def submission_count(self):
+        return self.submissions.count()
+
+    def get_target_students(self):
+        if self.target_students.exists():
+            return self.target_students.all()
+        return StudentProfile.objects.filter(classroom=self.classroom)
+
+    def is_target_student(self, student):
+        if self.target_students.exists():
+            return self.target_students.filter(pk=student.pk).exists()
+        return student.classroom == self.classroom
+
+    def calculate_late_penalty(self, submission):
+        if not submission.is_late:
+            return 0
+        days_late = (submission.submitted_at - self.due_date).days
+        return min(days_late * self.late_penalty_percent, 100)
+
+    def publish(self):
+        self.is_published = True
+        self.save(update_fields=['is_published', 'updated_at'])
+
+    def unpublish(self):
+        self.is_published = False
+        self.save(update_fields=['is_published', 'updated_at'])
+
+    def __str__(self):
+        return f"{self.get_type_display()} - {self.title} ({self.classroom})"
+
+
+class Question(models.Model):
+    QUESTION_TYPES = [
+        ('MCQ', 'Multiple Choice'),
+        ('TRUE_FALSE', 'True/False'),
+        ('SHORT_ANSWER', 'Short Answer'),
+        ('ESSAY', 'Essay'),
+    ]
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name='questions'
+    )
+    question_type = models.CharField(max_length=20, choices=QUESTION_TYPES)
+    question_text = models.TextField()
+    explanation = models.TextField(blank=True)
+    points = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField(default=0)
+    required = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+
+    @property
+    def is_auto_gradable(self):
+        return self.question_type in ['MCQ', 'TRUE_FALSE']
+
+    def __str__(self):
+        return f"{self.get_question_type_display()} - {self.question_text[:50]}"
+
+
+class AnswerOption(models.Model):
+    question = models.ForeignKey(
+        Question, on_delete=models.CASCADE, related_name='options'
+    )
+    option_text = models.CharField(max_length=500)
+    is_correct = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.option_text[:50]} ({'Correct' if self.is_correct else 'Incorrect'})"
+
+
+class AssessmentSubmission(models.Model):
+    assignment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name='submissions'
+    )
+    student = models.ForeignKey(
+        StudentProfile, on_delete=models.CASCADE, related_name='submissions'
+    )
+    submitted_answers = models.JSONField(default=dict)
+    file_attachment = models.FileField(
+        upload_to='submissions/', blank=True, null=True
+    )
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    auto_calculated_score = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    teacher_final_score = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    penalty_applied = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+    final_grade_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    feedback = models.TextField(blank=True)
+    is_graded = models.BooleanField(default=False)
+    is_verified_by_teacher = models.BooleanField(default=False)
+    graded_at = models.DateTimeField(null=True, blank=True)
+    is_late = models.BooleanField(default=False)
+    attempt_number = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ['assignment', 'student', 'attempt_number']
+
+    @property
+    def score(self):
+        return self.teacher_final_score or self.auto_calculated_score
+
+    @property
+    def is_submitted(self):
+        return bool(self.submitted_answers) or bool(self.file_attachment)
+
+    @property
+    def is_complete(self):
+        required = self.assignment.questions.filter(required=True)
+        if not self.submitted_answers:
+            return False
+        return all(str(q.pk) in self.submitted_answers for q in required)
+
+    @property
+    def grade_letter(self):
+        pct = self.final_grade_percentage
+        if pct is None:
+            if self.score and self.assignment.max_points:
+                pct = (self.score / self.assignment.max_points) * 100
+            else:
+                return '—'
+        if pct >= 90:
+            return 'A'
+        elif pct >= 80:
+            return 'B'
+        elif pct >= 70:
+            return 'C'
+        elif pct >= 60:
+            return 'D'
+        return 'F'
+
+    def auto_grade(self):
+        total_earned = 0
+        questions = self.assignment.questions.prefetch_related('options').all()
+        for q in questions:
+            if not q.is_auto_gradable:
+                continue
+            ans = self.submitted_answers.get(str(q.pk))
+            if ans is None:
+                continue
+            if q.question_type == 'MCQ':
+                correct = q.options.filter(is_correct=True).values_list('id', flat=True)
+                if int(ans) in correct:
+                    total_earned += q.points
+            elif q.question_type == 'TRUE_FALSE':
+                correct = q.options.filter(is_correct=True).first()
+                if correct and ans == correct.option_text:
+                    total_earned += q.points
+        self.auto_calculated_score = total_earned
+        self.is_graded = True
+        self.save(update_fields=['auto_calculated_score', 'is_graded', 'updated_at'])
+
+    def submit(self, answers):
+        self.submitted_answers = answers
+        if self.assignment.is_overdue:
+            self.is_late = True
+            penalty = self.assignment.calculate_late_penalty(self)
+            self.penalty_applied = penalty
+        self.save(update_fields=[
+            'submitted_answers', 'is_late', 'penalty_applied', 'updated_at'
+        ])
+        self.auto_grade()
+
+    def mark_as_graded(self, score, feedback, teacher_override=False):
+        self.teacher_final_score = score
+        self.feedback = feedback
+        self.graded_at = timezone.now()
+        if teacher_override:
+            self.is_verified_by_teacher = True
+        self.is_graded = True
+        self.final_grade_percentage = (
+            (score / self.assignment.max_points) * 100
+            if self.assignment.max_points else 0
+        )
+        self.save(update_fields=[
+            'teacher_final_score', 'feedback', 'graded_at',
+            'is_verified_by_teacher', 'is_graded', 'final_grade_percentage',
+            'updated_at',
+        ])
+
+    def calculate_percentage(self):
+        if self.score and self.assignment.max_points:
+            return round((self.score / self.assignment.max_points) * 100, 2)
+        return 0
+
+    def __str__(self):
+        score = self.teacher_final_score or self.auto_calculated_score
+        return f"{self.student} - {self.assignment} (Score: {score or 'Pending'})"
+
+
+class StudentAnswer(models.Model):
+    submission = models.ForeignKey(
+        AssessmentSubmission, on_delete=models.CASCADE,
+        related_name='student_answers'
+    )
+    question = models.ForeignKey(
+        Question, on_delete=models.CASCADE, related_name='student_answers'
+    )
+    answer_text = models.TextField(blank=True)
+    selected_option = models.ForeignKey(
+        AnswerOption, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    is_correct = models.BooleanField(null=True, blank=True)
+    points_earned = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+    teacher_feedback = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['submission', 'question']
+
+    def __str__(self):
+        return f"{self.question} - {self.answer_text[:50]}"

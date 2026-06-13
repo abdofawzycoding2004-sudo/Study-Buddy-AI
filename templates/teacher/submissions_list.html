@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Submissions - {{ assessment.title }} - EduMentor{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/assessment.css' %}">{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div><h2 class="h4 mb-1">Submissions: {{ assessment.title }}</h2><p class="text-muted mb-0">{{ assessment.get_type_display }} | {{ assessment.classroom|default:'—' }}</p></div>
+    <a href="{% url 'assessment_questions' assessment.pk %}" class="btn btn-outline-brand">Questions</a>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card p-3 text-center"><div class="text-brand fw-bold fs-4">{{ submitted_count }}/{{ total_students }}</div><small class="text-muted">Submitted</small></div></div>
+    <div class="col-md-3"><div class="card p-3 text-center"><div class="text-success fw-bold fs-4">{{ avg_score }}</div><small class="text-muted">Avg Score</small></div></div>
+    <div class="col-md-3"><div class="card p-3 text-center"><div class="text-brand fw-bold fs-4">{{ highest_score }}</div><small class="text-muted">Highest</small></div></div>
+    <div class="col-md-3"><div class="card p-3 text-center"><div class="text-danger fw-bold fs-4">{{ lowest_score }}</div><small class="text-muted">Lowest</small></div></div>
+  </div>
+  <div class="card"><div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light"><tr><th>Student</th><th>Submitted</th><th>Status</th><th>Auto Score</th><th>Final Score</th><th>Actions</th></tr></thead>
+      <tbody>{% for s in submissions %}<tr class="{% if s.is_late %}table-warning{% endif %}">
+        <td>{{ s.student.full_name }}</td>
+        <td>{{ s.submitted_at|date:"d M H:i" }}</td>
+        <td>{% if s.is_late %}<span class="badge bg-warning text-dark">Late</span>{% elif s.is_graded %}<span class="badge bg-success">Graded</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}</td>
+        <td>{{ s.auto_calculated_score|default:'—' }}</td>
+        <td><strong>{{ s.teacher_final_score|default:'—' }}</strong></td>
+        <td><a href="{% url 'submission_detail' s.pk %}" class="btn btn-sm btn-outline-brand">Review</a></td>
+      </tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No submissions yet.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div></div>
+  <div class="mt-3"><a href="{% url 'teacher_assessments' %}" class="btn btn-outline-secondary">← Back</a></div>
+</div>
+{% endblock %}

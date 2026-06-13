@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Review Submission - EduMentor{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/assessment.css' %}">{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div><h2 class="h4 mb-1">{{ submission.student.full_name }}</h2><p class="text-muted mb-0">{{ submission.assignment.title }} | Submitted: {{ submission.submitted_at|date:"d M Y H:i" }}</p></div>
+    <div class="text-end"><span class="fs-3 fw-bold brand-color">{{ submission.score|default:'—' }}</span><small class="text-muted d-block">/ {{ submission.assignment.max_points }}</small></div>
+  </div>
+  <form method="post" action="{% url 'submission_grade' submission.pk %}">{% csrf_token %}
+    {% for item in questions_data %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <h6 class="card-title">{{ item.question.question_text }}</h6>
+            <span class="badge bg-info">{{ item.question.points }} pts</span>
+          </div>
+          <p class="text-muted small">{{ item.question.get_question_type_display }}</p>
+          <div class="mb-2"><strong>Student Answer:</strong> {{ item.student_value|default:'—' }}</div>
+          {% if item.question.is_auto_gradable and item.answer and item.answer.is_correct is not None %}
+            <div class="mb-2"><span class="badge {% if item.answer.is_correct %}bg-success{% else %}bg-danger{% endif %}">{{ item.answer.is_correct|yesno:"Correct,Incorrect" }}</span></div>
+          {% endif %}
+          <div class="mb-2"><strong>Points Earned:</strong> {{ item.answer.points_earned|default:'0' }}</div>
+          <div class="mb-2"><label class="form-label small fw-bold">Teacher Feedback</label><textarea class="form-control" name="feedback_{{ item.question.pk }}" rows="2">{{ item.answer.teacher_feedback }}</textarea></div>
+        </div>
+      </div>
+    {% endfor %}
+    <div class="card p-4">
+      <h5 class="fw-bold mb-3">Overall Grade</h5>
+      {% for field in form %}<div class="mb-3"><label class="form-label fw-medium">{{ field.label }}</label>{{ field }}{% for err in field.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}</div>{% endfor %}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-brand">Save Grade</button>
+        <a href="{% url 'teacher_submissions' submission.assignment.pk %}" class="btn btn-outline-secondary">Back</a>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

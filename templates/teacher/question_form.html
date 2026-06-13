@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ object|yesno:"Edit,Add" }} Question - EduMentor{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/assessment.css' %}">{% endblock %}
+{% block content %}
+<div class="container py-4"><div class="row justify-content-center"><div class="col-lg-8">
+  <div class="card p-4">
+    <h2 class="h4 mb-1">{{ object|yesno:"Edit Question,Add Question" }}</h2>
+    <p class="text-muted mb-4">{{ assessment.title }}</p>
+    <form method="post">{% csrf_token %}
+      <div class="row g-3">{% for field in form %}<div class="col-md-6">
+        <label class="form-label fw-medium">{{ field.label }}</label>{{ field }}
+        {% for err in field.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+      </div>{% endfor %}</div>
+
+      <div id="mcq-options" class="mt-4" style="display:none;">
+        <h5 class="fw-bold">Answer Options</h5>
+        <table class="table">{{ option_formset.as_table }}</table>
+        {% for err in option_formset.non_form_errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+      </div>
+
+      <div id="tf-options" class="mt-4" style="display:none;">
+        <h5 class="fw-bold">Correct Answer</h5>
+        <div class="form-check"><input class="form-check-input" type="radio" name="tf_correct" value="True" id="tf_true"><label class="form-check-label" for="tf_true">True</label></div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="tf_correct" value="False" id="tf_false"><label class="form-check-label" for="tf_false">False</label></div>
+      </div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-brand">Save</button>
+        <a href="{% url 'assessment_questions' assessment.pk %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleQuestionFields() {
+  var t = document.getElementById('id_question_type');
+  if (!t) return;
+  var v = t.value;
+  document.getElementById('mcq-options').style.display = v === 'MCQ' ? '' : 'none';
+  document.getElementById('tf-options').style.display = v === 'TRUE_FALSE' ? '' : 'none';
+}
+document.addEventListener('DOMContentLoaded', toggleQuestionFields);
+document.getElementById('id_question_type')?.addEventListener('change', toggleQuestionFields);
+</script>
+{% endblock %}

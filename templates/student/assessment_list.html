@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}My Assessments - EduMentor{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/assessment.css' %}">{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="h4 mb-4">My Assessments</h2>
+
+  {% if available %}
+    <h5 class="fw-bold text-success mb-3">Available Now</h5>
+    <div class="row g-3 mb-4">{% for a in available %}
+      <div class="col-md-4"><div class="card h-100"><div class="card-body">
+        <span class="badge bg-success mb-2">{{ a.get_type_display }}</span>
+        <h5 class="card-title">{{ a.title }}</h5>
+        <p class="card-text small text-muted">{{ a.subject.name }} — {{ a.classroom }}</p>
+        <p class="card-text small">Due: {{ a.due_date|date:"d M Y H:i" }}</p>
+        <a href="{% url 'student_assessment_detail' a.pk %}" class="btn btn-brand btn-sm">Start</a>
+      </div></div></div>
+    {% endfor %}</div>
+  {% endif %}
+
+  {% if upcoming %}
+    <h5 class="fw-bold text-primary mb-3">Upcoming</h5>
+    <div class="row g-3 mb-4">{% for a in upcoming %}
+      <div class="col-md-4"><div class="card h-100"><div class="card-body">
+        <span class="badge bg-primary mb-2">{{ a.get_type_display }}</span>
+        <h5 class="card-title">{{ a.title }}</h5>
+        <p class="card-text small text-muted">{{ a.subject.name }} — {{ a.classroom }}</p>
+        <p class="card-text small">Available: {{ a.available_from|date:"d M Y" }}</p>
+      </div></div></div>
+    {% endfor %}</div>
+  {% endif %}
+
+  {% if completed %}
+    <h5 class="fw-bold text-secondary mb-3">Completed</h5>
+    <div class="row g-3 mb-4">{% for a in completed %}
+      <div class="col-md-4"><div class="card h-100"><div class="card-body">
+        <span class="badge bg-secondary mb-2">{{ a.get_type_display }}</span>
+        <h5 class="card-title">{{ a.title }}</h5>
+        <p class="card-text small text-muted">{{ a.subject.name }}</p>
+        {% with sub=a.submissions.all|first %}{% if sub %}<p class="card-text">Score: <strong>{{ sub.score|default:'Pending' }}</strong></p>{% endif %}{% endwith %}
+        <a href="{% url 'student_submission_result' a.submissions.first.pk %}" class="btn btn-sm btn-outline-brand">View Result</a>
+      </div></div></div>
+    {% endfor %}</div>
+  {% endif %}
+
+  {% if overdue %}
+    <h5 class="fw-bold text-danger mb-3">Overdue</h5>
+    <div class="row g-3 mb-4">{% for a in overdue %}
+      <div class="col-md-4"><div class="card h-100 border-danger"><div class="card-body">
+        <span class="badge bg-danger mb-2">{{ a.get_type_display }}</span>
+        <h5 class="card-title">{{ a.title }}</h5>
+        <p class="card-text small text-muted">Due was: {{ a.due_date|date:"d M Y H:i" }}</p>
+        <p class="card-text small text-danger">Overdue</p>
+      </div></div></div>
+    {% endfor %}</div>
+  {% endif %}
+
+  {% if not available and not upcoming and not completed and not overdue %}
+    <div class="text-center text-muted py-5"><p>No assessments available yet.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

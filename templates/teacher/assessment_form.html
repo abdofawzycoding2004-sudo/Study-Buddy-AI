@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ object|yesno:"Edit,Create" }} Assessment - EduMentor{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center"><div class="col-lg-8">
+    <div class="card p-4">
+      <h2 class="h4 mb-4">{{ object|yesno:"Edit Assessment,Create Assessment" }}</h2>
+      <form method="post">{% csrf_token %}
+        <div class="row g-3">
+          {% for field in form %}<div class="col-md-6">
+            <label class="form-label fw-medium">{{ field.label }}</label>{{ field }}
+            {% for err in field.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+          </div>{% endfor %}
+        </div>
+        {% if form.non_field_errors %}<div class="alert alert-danger mt-3">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-brand">Save</button>
+          <a href="{% url 'teacher_assessments' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div></div>
+</div>
+{% endblock %}

@@ -7,6 +7,7 @@ from django.utils import timezone
 from .models import (
     School, Grade, ClassRoom, Subject,
     TeacherProfile, StudentProfile, TimetableSlot, LiveClassSession,
+    Assessment, Question, AnswerOption, AssessmentSubmission,
 )
 
 User = get_user_model()
@@ -424,3 +425,157 @@ class BulkAttendanceForm(forms.Form):
             if val not in valid_statuses:
                 raise ValidationError(f"Invalid status '{val}' for student {key}.")
         return parsed
+
+
+class AssessmentForm(forms.ModelForm):
+    class Meta:
+        model = Assessment
+        fields = [
+            'type', 'title', 'description', 'instructions', 'subject', 'grade',
+            'classroom', 'target_students', 'due_date', 'max_points',
+            'time_limit_mins', 'allow_late_submission', 'late_penalty_percent',
+            'show_correct_answers',
+        ]
+        widgets = {
+            'type': forms.Select(attrs={'class': 'form-control'}),
+            'title': forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'dir': 'rtl'}),
+            'instructions': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'dir': 'rtl'}),
+            'subject': forms.Select(attrs={'class': 'form-control'}),
+            'grade': forms.Select(attrs={'class': 'form-control'}),
+            'classroom': forms.Select(attrs={'class': 'form-control'}),
+            'target_students': forms.SelectMultiple(attrs={'class': 'form-control', 'size': '8'}),
+            'due_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'max_points': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'time_limit_mins': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'allow_late_submission': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'late_penalty_percent': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '100'}),
+            'show_correct_answers': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        teacher = kwargs.pop('teacher', None)
+        super().__init__(*args, **kwargs)
+        if teacher:
+            self.fields['subject'].queryset = teacher.subjects.all()
+            self.fields['grade'].queryset = Grade.objects.filter(
+                school=teacher.school, is_active=True
+            )
+            self.fields['classroom'].queryset = ClassRoom.objects.filter(
+                grade__school=teacher.school, is_active=True
+            )
+        self.fields['target_students'].required = False
+        self.fields['time_limit_mins'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        due = cleaned.get('due_date')
+        if due and due <= timezone.now():
+            raise ValidationError('Due date must be in the future.')
+        asst_type = cleaned.get('type')
+        time_limit = cleaned.get('time_limit_mins')
+        if asst_type == 'QUIZ' and not time_limit:
+            self.add_error('time_limit_mins', 'Time limit is required for quizzes.')
+        return cleaned
+
+
+class QuestionForm(forms.ModelForm):
+    class Meta:
+        model = Question
+        fields = ['question_type', 'question_text', 'explanation', 'points', 'order', 'required']
+        widgets = {
+            'question_type': forms.Select(attrs={
+                'class': 'form-control',
+                'onchange': 'toggleQuestionFields()',
+            }),
+            'question_text': forms.Textarea(attrs={
+                'class': 'form-control', 'rows': 3, 'dir': 'rtl',
+            }),
+            'explanation': forms.Textarea(attrs={
+                'class': 'form-control', 'rows': 2, 'dir': 'rtl',
+            }),
+            'points': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control'}),
+            'required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean_points(self):
+        pts = self.cleaned_data.get('points')
+        if pts and pts < 1:
+            raise ValidationError('Points must be at least 1.')
+        return pts
+
+
+class AnswerOptionForm(forms.ModelForm):
+    class Meta:
+        model = AnswerOption
+        fields = ['option_text', 'is_correct', 'order']
+        widgets = {
+            'option_text': forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl'}),
+            'is_correct': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+
+AnswerOptionFormSet = forms.inlineformset_factory(
+    Question, AnswerOption, form=AnswerOptionForm,
+    extra=4, max_num=6, min_num=2,
+    validate_min=True, can_delete=True,
+)
+
+
+class SubmissionReviewForm(forms.Form):
+    final_score = forms.DecimalField(
+        max_digits=5, decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control', 'step': '0.25',
+        }),
+    )
+    feedback = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 'rows': 4, 'dir': 'rtl',
+        }),
+    )
+    is_verified = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Verify grade (teacher override)',
+    )
+
+
+class StudentAnswerForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        questions = kwargs.pop('questions', [])
+        super().__init__(*args, **kwargs)
+        for q in questions:
+            field_name = f'question_{q.pk}'
+            if q.question_type == 'MCQ':
+                choices = [(o.pk, o.option_text) for o in q.options.all()]
+                self.fields[field_name] = forms.ChoiceField(
+                    choices=choices,
+                    widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+                    label=q.question_text,
+                    required=q.required,
+                )
+            elif q.question_type == 'TRUE_FALSE':
+                choices = [('True', 'True'), ('False', 'False')]
+                self.fields[field_name] = forms.ChoiceField(
+                    choices=choices,
+                    widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+                    label=q.question_text,
+                    required=q.required,
+                )
+            elif q.question_type == 'SHORT_ANSWER':
+                self.fields[field_name] = forms.CharField(
+                    widget=forms.TextInput(attrs={'class': 'form-control', 'dir': 'rtl'}),
+                    label=q.question_text,
+                    required=q.required,
+                )
+            elif q.question_type == 'ESSAY':
+                self.fields[field_name] = forms.CharField(
+                    widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'dir': 'rtl'}),
+                    label=q.question_text,
+                    required=q.required,
+                )
+            self.fields[field_name].question_obj = q
