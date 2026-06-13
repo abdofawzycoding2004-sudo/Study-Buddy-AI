@@ -3,6 +3,7 @@
 {% block title %}{{ object|yesno:"Edit,Upload" }} Document - EduMentor{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/documents.css' %}">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 {% endblock %}
 {% block content %}
 <div class="container py-4">
@@ -12,7 +13,7 @@
         <h2 class="h4 mb-1">{{ object|yesno:"تعديل الملف,رفع ملف جديد" }}</h2>
         <p class="text-muted mb-4">الحد الأقصى لحجم المرفوعات 100 MB</p>
 
-        <form method="post" enctype="multipart/form-data" id="document-form">{% csrf_token %}
+        <form method="post" enctype="multipart/form-data" id="document-form"{% if object %} data-has-instance="1"{% endif %}>{% csrf_token %}
 
           {% if form.non_field_errors %}
             <div class="alert alert-danger">{% for err in form.non_field_errors %}{{ err }}{% endfor %}</div>
@@ -98,5 +99,6 @@
 </div>
 {% endblock %}
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'js/documents.js' %}"></script>
 {% endblock %}

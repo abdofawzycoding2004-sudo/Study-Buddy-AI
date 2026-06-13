@@ -88,6 +88,34 @@
       </div>
     </div>
   </div>
+
+  <div class="card p-4">
+    <h5 class="fw-bold mb-3">آخر النشاطات</h5>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th>الملف</th>
+            <th>الإجراء</th>
+            <th>التاريخ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td>{{ log.student.full_name }}</td>
+            <td><a href="{% url 'document_detail' log.document.pk %}" class="text-decoration-none">{{ log.document.title }}</a></td>
+            <td><span class="badge {% if log.action == 'DOWNLOAD' %}bg-success{% else %}bg-info{% endif %}">{{ log.get_action_display }}</span></td>
+            <td><small class="text-muted">{{ log.accessed_at|date:"Y-m-d H:i" }}</small></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-3">لا توجد نشاطات بعد</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block extra_js %}

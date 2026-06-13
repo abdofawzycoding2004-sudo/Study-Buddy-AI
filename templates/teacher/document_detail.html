@@ -121,7 +121,7 @@
         <h6 class="fw-bold">{{ document.file_extension|upper }}</h6>
         <div class="d-grid gap-2">
           <a href="{{ document.file_upload.url }}" class="btn btn-brand" target="_blank">عرض الملف</a>
-          <a href="{% url 'document_detail' document.pk %}" class="btn btn-outline-brand" download>تحميل</a>
+          <a href="{{ document.file_upload.url }}" class="btn btn-outline-brand" download data-track-download="1">تحميل</a>
         </div>
       </div>
     </div>

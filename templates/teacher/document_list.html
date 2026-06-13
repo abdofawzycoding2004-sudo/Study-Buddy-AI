@@ -34,6 +34,12 @@
       <div class="card p-3 text-center stat-card">
         <div class="stat-value">{{ total_storage_mb }} MB</div>
         <div class="stat-label">المساحة المستخدمة</div>
+        <div class="progress mt-2" style="height:6px;">
+          {% with pct=total_storage_mb|floatformat:0 %}
+          <div class="progress-bar {% if pct > 80 %}bg-danger{% elif pct > 50 %}bg-warning{% else %}bg-brand{% endif %}" style="width:{% if pct > 100 %}100{% else %}{{ pct }}{% endif %}%"></div>
+          {% endwith %}
+        </div>
+        <small class="text-muted">من 100 MB</small>
       </div>
     </div>
   </div>

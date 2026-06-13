@@ -756,6 +756,7 @@ class DocumentCreateView(TeacherRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
+        form.instance.owner_teacher = self.request.user.teacher_profile
         uploaded = self.request.FILES.get('file_upload')
         if uploaded:
             form.instance.file_size = uploaded.size
@@ -763,7 +764,6 @@ class DocumentCreateView(TeacherRequiredMixin, CreateView):
             form.instance.file_type = get_file_type(
                 uploaded.content_type or '', uploaded.name
             )
-            form.instance.owner_teacher = self.request.user.teacher_profile
         return super().form_valid(form)
 
 
@@ -867,6 +867,12 @@ class DocumentAnalyticsView(TeacherRequiredMixin, TemplateView):
             ft = doc.file_type
             file_type_dist[ft] = file_type_dist.get(ft, 0) + 1
 
+        recent_logs = DocumentAccessLog.objects.filter(
+            document__owner_teacher=teacher,
+        ).select_related(
+            'document', 'student__user'
+        ).order_by('-accessed_at')[:20]
+
         ctx.update({
             'documents': docs,
             'total_documents': docs.count(),
@@ -877,5 +883,6 @@ class DocumentAnalyticsView(TeacherRequiredMixin, TemplateView):
             'most_viewed': most_viewed,
             'daily_logs_json': daily_logs_json,
             'file_type_dist': file_type_dist,
+            'recent_logs': recent_logs,
         })
         return ctx
