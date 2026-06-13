@@ -606,6 +606,13 @@ class StudentAnswerForm(forms.Form):
 
 
 class DocumentShareForm(forms.ModelForm):
+    grade = forms.ModelChoiceField(
+        queryset=Grade.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='الصف الدراسي',
+    )
+
     class Meta:
         model = DocumentShare
         fields = [
@@ -645,11 +652,27 @@ class DocumentShareForm(forms.ModelForm):
         if teacher:
             self.fields['subject'].queryset = teacher.subjects.all()
             self.fields['category'].queryset = DocumentCategory.objects.all()
-            assigned_classes = teacher.get_assigned_classes()
-            self.fields['allowed_classes'].queryset = assigned_classes
-            self.fields['allowed_students'].queryset = StudentProfile.objects.filter(
-                classroom__in=assigned_classes
+            self.fields['grade'].queryset = Grade.objects.filter(
+                school=teacher.school, is_active=True
             )
+            grade_id = self.data.get('grade')
+            if grade_id:
+                try:
+                    grade = Grade.objects.get(pk=grade_id)
+                    self.fields['allowed_classes'].queryset = grade.classes.filter(
+                        is_active=True
+                    )
+                except (Grade.DoesNotExist, ValueError, OverflowError):
+                    self.fields['allowed_classes'].queryset = ClassRoom.objects.none()
+            else:
+                self.fields['allowed_classes'].queryset = ClassRoom.objects.none()
+            classroom_ids = self.data.getlist('allowed_classes')
+            if classroom_ids:
+                self.fields['allowed_students'].queryset = StudentProfile.objects.filter(
+                    classroom_id__in=classroom_ids
+                )
+            else:
+                self.fields['allowed_students'].queryset = StudentProfile.objects.none()
         self.fields['allowed_classes'].required = False
         self.fields['allowed_students'].required = False
         self.fields['expires_at'].required = False
