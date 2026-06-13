@@ -107,6 +107,11 @@ class ModuleCreateView(LoginRequiredMixin, TeacherRequiredMixin, CreateView):
         form.instance.course = self.course
         return super().form_valid(form)
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['course'] = self.course
+        return ctx
+
     def get_success_url(self):
         return reverse_lazy(
             'teacher_panel:course_detail', kwargs={'pk': self.course.pk}
