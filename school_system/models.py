@@ -83,6 +83,9 @@ class TeacherProfile(models.Model):
         School, on_delete=models.CASCADE, related_name='teachers'
     )
     subjects = models.ManyToManyField(Subject, related_name='teachers')
+    classes = models.ManyToManyField(
+        'ClassRoom', blank=True, related_name='assigned_teachers'
+    )
     qualifications = models.TextField()
     experience_years = models.PositiveIntegerField(default=0)
     specialization = models.CharField(max_length=100, blank=True)
@@ -106,7 +109,7 @@ class TeacherProfile(models.Model):
     def get_assigned_classes(self):
         from django.db.models import Q
         return ClassRoom.objects.filter(
-            Q(class_teacher=self) | Q(timetable_slots__teacher=self)
+            Q(class_teacher=self) | Q(timetable_slots__teacher=self) | Q(assigned_teachers=self)
         ).distinct()
 
     def get_total_students(self):

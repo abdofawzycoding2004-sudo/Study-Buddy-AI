@@ -41,10 +41,10 @@ class SubjectAdmin(admin.ModelAdmin):
 
 @admin.register(TeacherProfile)
 class TeacherProfileAdmin(admin.ModelAdmin):
-    list_display = ['employee_id', 'school', 'experience_years', 'grades_taught', 'is_active']
+    list_display = ['employee_id', 'school', 'experience_years', 'grades_taught', 'classes_taught', 'is_active']
     list_filter = ['school', 'is_active']
     search_fields = ['user__email', 'employee_id']
-    filter_horizontal = ['subjects']
+    filter_horizontal = ['subjects', 'classes']
 
     def grades_taught(self, obj):
         grade_ids = TimetableSlot.objects.filter(
@@ -52,7 +52,11 @@ class TeacherProfileAdmin(admin.ModelAdmin):
         ).values_list('classroom__grade', flat=True).distinct()
         grades = Grade.objects.filter(id__in=grade_ids)
         return ', '.join(g.name for g in grades) if grades else '—'
-    grades_taught.short_description = 'Grades Taught'
+    grades_taught.short_description = 'Grades (from slots)'
+
+    def classes_taught(self, obj):
+        return ', '.join(str(c) for c in obj.classes.all()) if obj.classes.exists() else '—'
+    classes_taught.short_description = 'Classes'
 
 
 @admin.register(StudentProfile)
