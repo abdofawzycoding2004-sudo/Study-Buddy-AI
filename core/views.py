@@ -86,6 +86,7 @@ def register_student(request):
 
 
 @ensure_csrf_cookie
+@ensure_csrf_cookie
 def login_view(request):
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
