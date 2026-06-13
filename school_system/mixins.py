@@ -26,3 +26,7 @@ class AdminRequiredMixin(RoleRequiredMixin):
 
 class SuperAdminRequiredMixin(RoleRequiredMixin):
     required_role = 'SUPERADMIN'
+
+
+class TeacherRequiredMixin(RoleRequiredMixin):
+    required_role = 'teacher'

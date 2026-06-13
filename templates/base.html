@@ -38,6 +38,13 @@
                         {% if user.role == 'teacher' %}
                             <li class="nav-item"><a class="nav-link" href="{% url 'teacher_dashboard' %}">لوحة التحكم</a></li>
                             <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">الجدول والحصص</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'teacher_timetable' %}">الجدول الأسبوعي</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'teacher_live_sessions' %}">الحصص المباشرة</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">الإدارة التعليمية</a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{% url 'teacher_panel:course_list' %}">الدورات</a></li>

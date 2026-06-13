@@ -1,5 +1,8 @@
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import timedelta
 
 
 class School(models.Model):
@@ -103,7 +106,7 @@ class TeacherProfile(models.Model):
     def get_assigned_classes(self):
         from django.db.models import Q
         return ClassRoom.objects.filter(
-            Q(class_teacher=self) | Q(timetableslots__teacher=self)
+            Q(class_teacher=self) | Q(timetable_slots__teacher=self)
         ).distinct()
 
     def get_total_students(self):
@@ -210,7 +213,7 @@ class StudentProfile(models.Model):
         if total == 0:
             return 100.0
         present = AttendanceRecord.objects.filter(
-            student=self, status='present'
+            student=self, status='PRESENT'
         ).count()
         return round((present / total) * 100, 2)
 
@@ -220,68 +223,229 @@ class StudentProfile(models.Model):
 
 class TimetableSlot(models.Model):
     DAY_CHOICES = [
-        ('SATURDAY', 'Saturday'),
-        ('SUNDAY', 'Sunday'),
-        ('MONDAY', 'Monday'),
-        ('TUESDAY', 'Tuesday'),
-        ('WEDNESDAY', 'Wednesday'),
-        ('THURSDAY', 'Thursday'),
+        (0, 'Saturday'),
+        (1, 'Sunday'),
+        (2, 'Monday'),
+        (3, 'Tuesday'),
+        (4, 'Wednesday'),
+        (5, 'Thursday'),
+        (6, 'Friday'),
     ]
-    classroom = models.ForeignKey(
-        ClassRoom, on_delete=models.CASCADE, related_name='timetableslots'
+    DAY_NAMES = {k: v for k, v in DAY_CHOICES}
+
+    teacher = models.ForeignKey(
+        TeacherProfile, on_delete=models.CASCADE, related_name='timetable_slots'
     )
     subject = models.ForeignKey(
-        Subject, on_delete=models.CASCADE, related_name='timetableslots'
+        Subject, on_delete=models.CASCADE, related_name='timetable_slots'
     )
-    teacher = models.ForeignKey(
-        TeacherProfile, on_delete=models.CASCADE, related_name='timetableslots'
+    classroom = models.ForeignKey(
+        ClassRoom, on_delete=models.CASCADE, related_name='timetable_slots'
     )
-    day_of_week = models.CharField(max_length=15, choices=DAY_CHOICES)
+    day_of_week = models.PositiveIntegerField(choices=DAY_CHOICES)
     start_time = models.TimeField()
     end_time = models.TimeField()
-    room = models.CharField(max_length=50, blank=True)
+    duration_mins = models.PositiveIntegerField(editable=False)
+    room_location = models.CharField(max_length=100, blank=True)
+    academic_year = models.CharField(max_length=20)
+    semester = models.CharField(
+        max_length=20,
+        choices=[('FALL', 'Fall'), ('SPRING', 'Spring')],
+        default='FALL',
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        unique_together = ['teacher', 'classroom', 'day_of_week', 'start_time', 'academic_year']
         ordering = ['day_of_week', 'start_time']
         verbose_name = 'Timetable Slot'
         verbose_name_plural = 'Timetable Slots'
 
     def __str__(self):
+        day_name = self.DAY_NAMES.get(self.day_of_week, 'Unknown')
         return (
-            f"{self.classroom.name} - {self.subject.name} "
-            f"({self.get_day_of_week_display()} {self.start_time}-{self.end_time})"
+            f"{self.teacher} - {self.subject} - {self.classroom} "
+            f"({day_name} {self.start_time})"
         )
 
+    def clean(self):
+        if self.end_time and self.start_time:
+            if self.end_time <= self.start_time:
+                raise ValidationError('End time must be after start time.')
+            delta = timedelta(
+                hours=self.end_time.hour - self.start_time.hour,
+                minutes=self.end_time.minute - self.start_time.minute,
+            )
+            self.duration_mins = int(delta.total_seconds() // 60)
 
-class AttendanceRecord(models.Model):
+    def save(self, *args, **kwargs):
+        if self.start_time and self.end_time:
+            delta = timedelta(
+                hours=self.end_time.hour - self.start_time.hour,
+                minutes=self.end_time.minute - self.start_time.minute,
+            )
+            self.duration_mins = int(delta.total_seconds() // 60)
+        super().save(*args, **kwargs)
+
+    @property
+    def duration_formatted(self):
+        hours = self.duration_mins // 60
+        mins = self.duration_mins % 60
+        if hours and mins:
+            return f"{hours}h {mins}m"
+        elif hours:
+            return f"{hours}h"
+        return f"{mins}m"
+
+    def get_students(self):
+        return StudentProfile.objects.filter(classroom=self.classroom)
+
+    def conflicts_with(self, other):
+        if self.day_of_week != other.day_of_week:
+            return False
+        return self.start_time < other.end_time and other.start_time < self.end_time
+
+
+class LiveClassSession(models.Model):
     STATUS_CHOICES = [
-        ('present', 'Present'),
-        ('absent', 'Absent'),
-        ('late', 'Late'),
-        ('excused', 'Excused'),
+        ('DRAFT', 'Draft'),
+        ('CONFIRMED', 'Confirmed'),
+        ('IN_PROGRESS', 'In Progress'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
     ]
-    student = models.ForeignKey(
-        StudentProfile, on_delete=models.CASCADE, related_name='attendance_records'
-    )
+    DELIVERY_CHOICES = [
+        ('ON_CAMPUS', 'On Campus'),
+        ('ONLINE', 'Online'),
+    ]
+
     timetable_slot = models.ForeignKey(
-        TimetableSlot, on_delete=models.CASCADE, related_name='attendance_records'
+        TimetableSlot, on_delete=models.CASCADE, related_name='live_sessions'
     )
-    date = models.DateField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
-    remarks = models.TextField(blank=True)
-    marked_by = models.ForeignKey(
-        TeacherProfile, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='marked_attendance'
+    session_date = models.DateField()
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='DRAFT'
     )
+    delivery_type = models.CharField(
+        max_length=20, choices=DELIVERY_CHOICES, default='ON_CAMPUS'
+    )
+    zoom_join_url = models.URLField(blank=True, null=True)
+    meeting_id = models.CharField(max_length=100, blank=True, null=True)
+    meeting_password = models.CharField(max_length=50, blank=True, null=True)
+    start_datetime = models.DateTimeField(null=True, blank=True)
+    end_datetime = models.DateTimeField(null=True, blank=True)
+    duration_actual_mins = models.PositiveIntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    recording_url = models.URLField(blank=True, null=True)
+    attendance_taken = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['student', 'timetable_slot', 'date']
-        ordering = ['-date']
+        unique_together = ['timetable_slot', 'session_date']
+        ordering = ['-session_date', '-created_at']
 
     def __str__(self):
-        return f"{self.student.full_name} - {self.date} - {self.status}"
+        return f"{self.timetable_slot} - {self.session_date} ({self.get_status_display()})"
+
+    @property
+    def start_time(self):
+        return self.timetable_slot.start_time
+
+    @property
+    def end_time(self):
+        return self.timetable_slot.end_time
+
+    @property
+    def subject(self):
+        return self.timetable_slot.subject
+
+    @property
+    def classroom(self):
+        return self.timetable_slot.classroom
+
+    @property
+    def teacher(self):
+        return self.timetable_slot.teacher
+
+    @property
+    def is_upcoming(self):
+        return self.status == 'CONFIRMED' and self.session_date >= timezone.localdate()
+
+    @property
+    def is_active_session(self):
+        return self.status == 'IN_PROGRESS'
+
+    def confirm(self):
+        self.status = 'CONFIRMED'
+        self.save(update_fields=['status', 'updated_at'])
+
+    def start(self):
+        self.status = 'IN_PROGRESS'
+        self.start_datetime = timezone.now()
+        self.save(update_fields=['status', 'start_datetime', 'updated_at'])
+
+    def complete(self):
+        self.status = 'COMPLETED'
+        self.end_datetime = timezone.now()
+        if self.start_datetime:
+            delta = self.end_datetime - self.start_datetime
+            self.duration_actual_mins = int(delta.total_seconds() // 60)
+        self.save(update_fields=['status', 'end_datetime', 'duration_actual_mins', 'updated_at'])
+
+    def cancel(self):
+        self.status = 'CANCELLED'
+        self.save(update_fields=['status', 'updated_at'])
+
+    def get_attendance_records(self):
+        return self.attendance_logs.select_related('student__user').all()
+
+    def get_student_count(self):
+        return StudentProfile.objects.filter(classroom=self.classroom).count()
+
+    def get_present_count(self):
+        return self.attendance_logs.filter(status='PRESENT').count()
+
+    def get_attendance_percentage(self):
+        total = self.get_student_count()
+        if total == 0:
+            return 0.0
+        present = self.get_present_count()
+        return round((present / total) * 100, 2)
+
+
+class AttendanceRecord(models.Model):
+    STATUS_CHOICES = [
+        ('PRESENT', 'Present'),
+        ('ABSENT', 'Absent'),
+        ('LATE', 'Late'),
+        ('EXCUSED', 'Excused'),
+    ]
+
+    session = models.ForeignKey(
+        LiveClassSession, on_delete=models.CASCADE, related_name='attendance_logs'
+    )
+    student = models.ForeignKey(
+        StudentProfile, on_delete=models.CASCADE, related_name='attendance_records'
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PRESENT')
+    check_in_time = models.DateTimeField(null=True, blank=True)
+    check_out_time = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['session', 'student']
+        ordering = ['student__user__first_name', 'student__user__last_name']
+
+    def clean(self):
+        if self.student and self.session and self.student.classroom != self.session.classroom:
+            raise ValidationError(
+                f"{self.student} is not enrolled in {self.session.classroom}."
+            )
+
+    def __str__(self):
+        return f"{self.student} - {self.session} - {self.get_status_display()}"

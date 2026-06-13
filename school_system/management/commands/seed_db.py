@@ -2,7 +2,10 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import date
-from school_system.models import School, Grade, ClassRoom, Subject, TeacherProfile, StudentProfile
+from school_system.models import (
+    School, Grade, ClassRoom, Subject, TeacherProfile, StudentProfile,
+    TimetableSlot, LiveClassSession,
+)
 from teacher_panel.models import Course as TPCourse, Module as TPModule, Category as TPCategory
 
 User = get_user_model()
@@ -150,6 +153,54 @@ class Command(BaseCommand):
             classrooms[ci].save()
             students.append(student)
         self.stdout.write(f'Created {len(students)} students')
+
+        # ── Timetable Slots (sample) ──
+        import datetime
+        from django.utils import timezone as tz
+
+        slot_configs = [
+            # (teacher_idx, subj_code, classroom_idx, day, start, end, room)
+            (0, 'MATH101', 0, 1, '08:00', '09:30', 'Room 101'),  # Sun 6-A Math
+            (0, 'PHY201', 1, 3, '10:00', '11:30', 'Lab 1'),      # Tue 6-B Physics
+            (0, 'MATH101', 2, 5, '08:00', '09:30', 'Room 102'),  # Thu 6-C Math
+            (1, 'ARB101', 3, 0, '08:00', '09:30', 'Room 103'),   # Sat 7-A Arabic
+            (1, 'ISL101', 4, 2, '09:45', '11:15', 'Room 103'),   # Mon 7-B Islamic
+            (1, 'ARB101', 5, 4, '08:00', '09:30', 'Room 104'),   # Wed 7-C Arabic
+            (2, 'ENG101', 6, 1, '08:00', '09:30', 'Room 201'),   # Sun 8-A English
+            (2, 'HIS101', 7, 3, '11:45', '13:15', 'Room 202'),   # Tue 8-B History
+            (2, 'ENG101', 8, 5, '09:45', '11:15', 'Room 201'),   # Thu 8-C English
+        ]
+
+        slots_created = 0
+        for ti, sc, ci, day, st, et, room in slot_configs:
+            slot = TimetableSlot.objects.create(
+                teacher=teacher_profiles[ti],
+                subject=Subject.objects.get(code=sc),
+                classroom=classrooms[ci],
+                day_of_week=day,
+                start_time=datetime.time.fromisoformat(st),
+                end_time=datetime.time.fromisoformat(et),
+                room_location=room,
+                academic_year='2025-2026',
+                semester='FALL',
+            )
+            slots_created += 1
+            # Create a couple of live sessions for this slot
+            today = tz.localdate()
+            for week_offset in [1, 2]:
+                days_ahead = day - today.weekday()
+                if days_ahead <= 0:
+                    days_ahead += 7
+                session_date = today + datetime.timedelta(days=days_ahead + 7 * (week_offset - 1))
+                LiveClassSession.objects.get_or_create(
+                    timetable_slot=slot,
+                    session_date=session_date,
+                    defaults={
+                        'status': 'DRAFT',
+                        'delivery_type': 'ONLINE' if 'Lab' in room else 'ON_CAMPUS',
+                    },
+                )
+        self.stdout.write(f'Created {slots_created} timetable slots with live sessions')
 
         # ── Teacher Panel: Categories, Courses, Modules ──
         cat = TPCategory.objects.create(name='STEM')

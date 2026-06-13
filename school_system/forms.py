@@ -1,10 +1,12 @@
+import json
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from .models import (
     School, Grade, ClassRoom, Subject,
-    TeacherProfile, StudentProfile,
+    TeacherProfile, StudentProfile, TimetableSlot, LiveClassSession,
 )
 
 User = get_user_model()
@@ -255,4 +257,159 @@ class StudentRegistrationForm(CustomUserCreationForm):
         return sid
 
 
+class TimetableSlotForm(forms.ModelForm):
+    class Meta:
+        model = TimetableSlot
+        fields = [
+            'subject', 'classroom', 'day_of_week',
+            'start_time', 'end_time', 'room_location',
+            'academic_year', 'semester',
+        ]
+        widgets = {
+            'day_of_week': forms.Select(attrs={'class': 'form-control'}),
+            'start_time': forms.TimeInput(attrs={
+                'class': 'form-control',
+                'type': 'time',
+                'step': '1800',
+            }),
+            'end_time': forms.TimeInput(attrs={
+                'class': 'form-control',
+                'type': 'time',
+                'step': '1800',
+            }),
+            'room_location': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Room 101',
+            }),
+            'academic_year': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 2025-2026',
+            }),
+            'semester': forms.Select(attrs={'class': 'form-control'}),
+        }
 
+    def __init__(self, *args, **kwargs):
+        teacher = kwargs.pop('teacher', None)
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if not hasattr(field.widget, 'attrs'):
+                continue
+            if 'class' not in field.widget.attrs:
+                field.widget.attrs['class'] = 'form-control'
+
+        if teacher:
+            self.fields['classroom'].queryset = ClassRoom.objects.filter(
+                grade__school=teacher.school, is_active=True
+            )
+            self.fields['subject'].queryset = teacher.subjects.all()
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get('start_time')
+        end = cleaned.get('end_time')
+        teacher = cleaned.get('teacher')
+        classroom = cleaned.get('classroom')
+        day = cleaned.get('day_of_week')
+        academic_year = cleaned.get('academic_year')
+
+        if start and end and end <= start:
+            raise ValidationError('End time must be after start time.')
+
+        if teacher and day and start and end and academic_year:
+            conflicts = TimetableSlot.objects.filter(
+                teacher=teacher,
+                day_of_week=day,
+                academic_year=academic_year,
+                is_active=True,
+            )
+            if self.instance.pk:
+                conflicts = conflicts.exclude(pk=self.instance.pk)
+
+            for slot in conflicts:
+                if start < slot.end_time and slot.start_time < end:
+                    raise ValidationError(
+                        f'Time conflict with existing slot: {slot}'
+                    )
+
+        return cleaned
+
+
+class LiveClassSessionForm(forms.ModelForm):
+    class Meta:
+        model = LiveClassSession
+        fields = [
+            'session_date', 'delivery_type', 'zoom_join_url',
+            'meeting_id', 'meeting_password', 'notes',
+        ]
+        widgets = {
+            'session_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+            }),
+            'delivery_type': forms.Select(attrs={
+                'class': 'form-control',
+                'onchange': 'toggleDeliveryFields()',
+            }),
+            'zoom_join_url': forms.URLInput(attrs={
+                'class': 'form-control online-field',
+                'placeholder': 'https://zoom.us/j/...',
+            }),
+            'meeting_id': forms.TextInput(attrs={
+                'class': 'form-control online-field',
+                'placeholder': 'Meeting ID',
+            }),
+            'meeting_password': forms.TextInput(attrs={
+                'class': 'form-control online-field',
+                'placeholder': 'Meeting password',
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Session notes...',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            self.fields['session_date'].initial = timezone.localdate()
+        self.fields['zoom_join_url'].required = False
+        self.fields['meeting_id'].required = False
+        self.fields['meeting_password'].required = False
+
+    def clean_session_date(self):
+        date = self.cleaned_data.get('session_date')
+        if date and date < timezone.localdate():
+            raise ValidationError('Session date cannot be in the past.')
+        return date
+
+    def clean(self):
+        cleaned = super().clean()
+        delivery = cleaned.get('delivery_type')
+        zoom_url = cleaned.get('zoom_join_url')
+
+        if delivery == 'ONLINE' and not zoom_url:
+            self.add_error('zoom_join_url', 'Join URL is required for online classes.')
+
+        return cleaned
+
+
+class BulkAttendanceForm(forms.Form):
+    session_id = forms.IntegerField(widget=forms.HiddenInput())
+    attendance_data = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'd-none'})
+    )
+
+    def clean_attendance_data(self):
+        data = self.cleaned_data.get('attendance_data')
+        try:
+            parsed = json.loads(data)
+        except json.JSONDecodeError:
+            raise ValidationError('Invalid JSON format.')
+        if not isinstance(parsed, dict):
+            raise ValidationError('Expected a JSON object.')
+        valid_statuses = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED']
+        for key, val in parsed.items():
+            if val not in valid_statuses:
+                raise ValidationError(f"Invalid status '{val}' for student {key}.")
+        return parsed

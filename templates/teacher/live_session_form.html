@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Create Live Session - EduMentor{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/teacher.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card p-4">
+                <h2 class="h4 mb-1">Create Live Session</h2>
+                <p class="text-muted mb-4">
+                    From: {{ timetable_slot.subject.name }} - {{ timetable_slot.classroom }}
+                    ({{ timetable_slot.start_time|time:"H:i" }} - {{ timetable_slot.end_time|time:"H:i" }})
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">{{ field.label }}</label>
+                            {{ field }}
+                            {% for err in field.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-brand">Create Session</button>
+                        <a href="{% url 'teacher_live_sessions' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/teacher.js' %}"></script>
+{% endblock %}

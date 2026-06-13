@@ -1,0 +1,210 @@
+.timetable-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 2rem;
+}
+
+.timetable-day-column {
+    min-height: 500px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    padding: 12px;
+}
+
+.timetable-day-header {
+    text-align: center;
+    font-weight: 700;
+    color: #4F46E5;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 12px;
+}
+
+.timetable-slot-card {
+    background: #f0f4ff;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-right: 3px solid #4F46E5;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.timetable-slot-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(79,70,229,0.15);
+}
+
+.timetable-slot-card .slot-subject {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #1e293b;
+}
+
+.timetable-slot-card .slot-class {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.timetable-slot-card .slot-time {
+    font-size: 0.75rem;
+    color: #4F46E5;
+    font-weight: 500;
+}
+
+.timetable-slot-card .slot-duration {
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-draft { background: #e5e7eb; color: #374151; }
+.status-confirmed { background: #dbeafe; color: #1d4ed8; }
+.status-in-progress { background: #d1fae5; color: #065f46; }
+.status-completed { background: #d1fae5; color: #065f46; }
+.status-cancelled { background: #fee2e2; color: #991b1b; }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.pulse {
+    animation: pulse 1.5s infinite;
+}
+
+.session-control-card {
+    max-width: 600px;
+    margin: 2rem auto;
+    text-align: center;
+    padding: 2rem;
+}
+
+.session-control-card .display-subject {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.session-control-card .display-meta {
+    font-size: 1rem;
+    color: #64748b;
+    margin-bottom: 1.5rem;
+}
+
+.session-control-card .status-badge-large {
+    font-size: 1.2rem;
+    padding: 8px 24px;
+    border-radius: 30px;
+}
+
+.countdown-timer {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4F46E5;
+    font-variant-numeric: tabular-nums;
+}
+
+.attendance-table th, .attendance-table td {
+    vertical-align: middle;
+    padding: 10px 12px;
+}
+
+.attendance-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.attendance-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.attendance-table .btn-status {
+    min-width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    font-size: 0.7rem;
+    font-weight: 700;
+    transition: all 0.15s;
+}
+
+.attendance-table .btn-status.active {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 2px rgba(79,70,229,0.3);
+}
+
+.attendance-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.attendance-summary-item {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+}
+
+.attendance-summary-item .count {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.attendance-summary-item .label {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.session-filter-tabs .nav-link {
+    color: #6b7280;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    margin: 0 4px;
+}
+
+.session-filter-tabs .nav-link.active {
+    background: #4F46E5;
+    color: #fff;
+}
+
+@media (max-width: 992px) {
+    .timetable-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .timetable-grid {
+        grid-template-columns: 1fr;
+    }
+    .timetable-day-column {
+        min-height: auto;
+    }
+    .session-control-card {
+        padding: 1rem;
+    }
+    .countdown-timer {
+        font-size: 1.8rem;
+    }
+}
+
+@media print {
+    .navbar, footer, .btn, .no-print { display: none !important; }
+    .timetable-grid { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .timetable-slot-card { break-inside: avoid; }
+}

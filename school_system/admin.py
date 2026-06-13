@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (
     School, Grade, ClassRoom, Subject,
-    TeacherProfile, StudentProfile, TimetableSlot, AttendanceRecord,
+    TeacherProfile, StudentProfile, TimetableSlot,
+    LiveClassSession, AttendanceRecord,
 )
 
 
@@ -55,12 +56,27 @@ class StudentProfileAdmin(admin.ModelAdmin):
 
 @admin.register(TimetableSlot)
 class TimetableSlotAdmin(admin.ModelAdmin):
-    list_display = ['classroom', 'subject', 'teacher', 'day_of_week', 'start_time', 'end_time']
-    list_filter = ['day_of_week', 'classroom__grade__school']
+    list_display = [
+        'classroom', 'subject', 'teacher', 'day_of_week',
+        'start_time', 'end_time', 'duration_mins', 'is_active',
+    ]
+    list_filter = ['day_of_week', 'classroom__grade__school', 'is_active']
+    search_fields = ['teacher__user__first_name', 'subject__name', 'classroom__name']
+
+
+@admin.register(LiveClassSession)
+class LiveClassSessionAdmin(admin.ModelAdmin):
+    list_display = [
+        'timetable_slot', 'session_date', 'status',
+        'delivery_type', 'attendance_taken',
+    ]
+    list_filter = ['status', 'delivery_type', 'session_date']
+    search_fields = ['timetable_slot__subject__name', 'timetable_slot__classroom__name']
+    date_hierarchy = 'session_date'
 
 
 @admin.register(AttendanceRecord)
 class AttendanceRecordAdmin(admin.ModelAdmin):
-    list_display = ['student', 'date', 'status', 'timetable_slot']
-    list_filter = ['status', 'date']
+    list_display = ['student', 'session', 'status', 'check_in_time']
+    list_filter = ['status', 'session__session_date']
     search_fields = ['student__user__first_name', 'student__student_id']

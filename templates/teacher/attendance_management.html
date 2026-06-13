@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Attendance - {{ session.subject.name }} - EduMentor{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/teacher.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 mb-1">Attendance: {{ session.subject.name }}</h2>
+            <p class="text-muted mb-0">
+                {{ session.classroom }} &middot; {{ session.session_date }} &middot;
+                {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
+            </p>
+        </div>
+        <div id="save-indicator" class="fw-bold"></div>
+    </div>
+
+    <div class="attendance-summary">
+        <div class="attendance-summary-item">
+            <div class="count" id="total-count">{{ student_count }}</div>
+            <div class="label">Total Students</div>
+        </div>
+        <div class="attendance-summary-item">
+            <div class="count text-success" id="present-count">{{ present_count }}</div>
+            <div class="label">Present</div>
+        </div>
+        <div class="attendance-summary-item">
+            <div class="count text-danger" id="absent-count">0</div>
+            <div class="label">Absent</div>
+        </div>
+    </div>
+
+    <input type="hidden" id="attendance-session-id" value="{{ session.pk }}">
+
+    <div class="d-flex gap-2 mb-3 no-print">
+        <button id="mark-all-present" class="btn btn-outline-success btn-sm">Mark All Present</button>
+        <button id="save-attendance" class="btn btn-brand btn-sm">Save Attendance</button>
+        <span class="text-muted small align-self-center ms-2">Shortcuts: 1=Present 2=Absent 3=Late 4=Excused &uarr;&darr;=Navigate</span>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table id="attendance-grid" class="table attendance-table mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>ID</th>
+                        <th class="text-center">Present</th>
+                        <th class="text-center">Absent</th>
+                        <th class="text-center">Late</th>
+                        <th class="text-center">Excused</th>
+                        <th>Check-in</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in attendance_grid %}
+                        <tr data-student-id="{{ entry.student.pk }}" tabindex="0"
+                            class="{% if entry.status == 'PRESENT' %}table-success{% elif entry.status == 'ABSENT' %}table-danger{% elif entry.status == 'LATE' %}table-warning{% elif entry.status == 'EXCUSED' %}table-info{% endif %}">
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ entry.student.full_name }}</td>
+                            <td>{{ entry.student.student_id }}</td>
+                            <td class="text-center">
+                                <input type="radio" name="status_{{ entry.student.pk }}" value="PRESENT"
+                                    {% if entry.status == 'PRESENT' %}checked{% endif %}
+                                    onchange="setAttendanceStatus(this.closest('tr'), 'PRESENT')">
+                            </td>
+                            <td class="text-center">
+                                <input type="radio" name="status_{{ entry.student.pk }}" value="ABSENT"
+                                    {% if entry.status == 'ABSENT' %}checked{% endif %}
+                                    onchange="setAttendanceStatus(this.closest('tr'), 'ABSENT')">
+                            </td>
+                            <td class="text-center">
+                                <input type="radio" name="status_{{ entry.student.pk }}" value="LATE"
+                                    {% if entry.status == 'LATE' %}checked{% endif %}
+                                    onchange="setAttendanceStatus(this.closest('tr'), 'LATE')">
+                            </td>
+                            <td class="text-center">
+                                <input type="radio" name="status_{{ entry.student.pk }}" value="EXCUSED"
+                                    {% if entry.status == 'EXCUSED' %}checked{% endif %}
+                                    onchange="setAttendanceStatus(this.closest('tr'), 'EXCUSED')">
+                            </td>
+                            <td>
+                                {% if entry.check_in %}
+                                    {{ entry.check_in|date:"H:i" }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No students in this class.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/teacher.js' %}"></script>
+{% endblock %}

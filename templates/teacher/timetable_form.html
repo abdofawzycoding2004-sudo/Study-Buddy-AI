@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ object|yesno:"Edit,Add" }} Timetable Slot - EduMentor{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/teacher.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card p-4">
+                <h2 class="h4 mb-4">{{ object|yesno:"Edit Timetable Slot,Add Timetable Slot" }}</h2>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% for err in field.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+
+                    <div class="mb-3" id="duration-display-wrapper">
+                        <label class="form-label fw-medium">Duration</label>
+                        <div id="duration-display" class="text-muted">Set start & end time</div>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-brand">Save</button>
+                        <a href="{% url 'teacher_timetable' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/teacher.js' %}"></script>
+{% endblock %}
