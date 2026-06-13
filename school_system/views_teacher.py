@@ -911,8 +911,8 @@ class TeacherDashboardView(TeacherRequiredMixin, TemplateView):
 
         recent_assessments = Assessment.objects.filter(
             teacher=teacher,
-            published_at__gte=now - timedelta(days=7),
-        ).select_related('subject', 'classroom').order_by('-published_at')
+            created_at__gte=now - timedelta(days=7),
+        ).select_related('subject', 'classroom').order_by('-created_at')
 
         pending_grading = TeacherAnalytics.get_pending_grading_count(teacher)
 
