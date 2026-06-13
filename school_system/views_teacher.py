@@ -866,6 +866,7 @@ class DocumentAnalyticsView(TeacherRequiredMixin, TemplateView):
         for doc in docs:
             ft = doc.file_type
             file_type_dist[ft] = file_type_dist.get(ft, 0) + 1
+        file_type_dist_json = json.dumps(file_type_dist, cls=DateEncoder)
 
         recent_logs = DocumentAccessLog.objects.filter(
             document__owner_teacher=teacher,
@@ -882,7 +883,7 @@ class DocumentAnalyticsView(TeacherRequiredMixin, TemplateView):
             'most_downloaded': most_downloaded,
             'most_viewed': most_viewed,
             'daily_logs_json': daily_logs_json,
-            'file_type_dist': file_type_dist,
+            'file_type_dist_json': file_type_dist_json,
             'recent_logs': recent_logs,
         })
         return ctx
