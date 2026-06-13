@@ -461,8 +461,28 @@ class AssessmentForm(forms.ModelForm):
             self.fields['grade'].queryset = Grade.objects.filter(
                 school=teacher.school, is_active=True
             )
-            self.fields['classroom'].queryset = ClassRoom.objects.none()
-            self.fields['target_students'].queryset = StudentProfile.objects.none()
+            grade_id = self.data.get('grade') or (
+                getattr(self.instance, 'grade_id', None) if self.instance.pk else None
+            )
+            if grade_id:
+                try:
+                    grade = Grade.objects.get(pk=grade_id)
+                    self.fields['classroom'].queryset = grade.classes.filter(is_active=True)
+                except (Grade.DoesNotExist, ValueError, OverflowError):
+                    self.fields['classroom'].queryset = ClassRoom.objects.none()
+            else:
+                self.fields['classroom'].queryset = ClassRoom.objects.none()
+            classroom_id = self.data.get('classroom') or (
+                getattr(self.instance, 'classroom_id', None) if self.instance.pk else None
+            )
+            if classroom_id:
+                try:
+                    classroom = ClassRoom.objects.get(pk=classroom_id)
+                    self.fields['target_students'].queryset = classroom.students.all()
+                except (ClassRoom.DoesNotExist, ValueError, OverflowError):
+                    self.fields['target_students'].queryset = StudentProfile.objects.none()
+            else:
+                self.fields['target_students'].queryset = StudentProfile.objects.none()
         self.fields['target_students'].required = False
         self.fields['time_limit_mins'].required = False
 
@@ -481,7 +501,7 @@ class AssessmentForm(forms.ModelForm):
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
-        fields = ['question_type', 'question_text', 'explanation', 'points', 'order', 'required']
+        fields = ['question_type', 'question_text', 'correct_answer', 'explanation', 'points', 'order', 'required']
         widgets = {
             'question_type': forms.Select(attrs={
                 'class': 'form-control',
@@ -489,6 +509,10 @@ class QuestionForm(forms.ModelForm):
             }),
             'question_text': forms.Textarea(attrs={
                 'class': 'form-control', 'rows': 3, 'dir': 'rtl',
+            }),
+            'correct_answer': forms.TextInput(attrs={
+                'class': 'form-control', 'dir': 'rtl',
+                'placeholder': 'Correct answer (for Short Answer type)',
             }),
             'explanation': forms.Textarea(attrs={
                 'class': 'form-control', 'rows': 2, 'dir': 'rtl',

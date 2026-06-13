@@ -8,10 +8,15 @@
     <h2 class="h4 mb-1">{{ object|yesno:"Edit Question,Add Question" }}</h2>
     <p class="text-muted mb-4">{{ assessment.title }}</p>
     <form method="post">{% csrf_token %}
-      <div class="row g-3">{% for field in form %}<div class="col-md-6">
+      <div class="row g-3">{% for field in form %}{% if field.name != 'correct_answer' %}<div class="col-md-6">
         <label class="form-label fw-medium">{{ field.label }}</label>{{ field }}
         {% for err in field.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-      </div>{% endfor %}</div>
+      </div>{% endif %}{% endfor %}
+      <div id="correct-answer-field" class="col-md-6" style="display:none;">
+        <label class="form-label fw-medium">{{ form.correct_answer.label }}</label>{{ form.correct_answer }}
+        {% if form.correct_answer.errors %}<div class="text-danger small">{{ form.correct_answer.errors }}</div>{% endif %}
+      </div>
+      </div>
 
       <div id="mcq-options" class="mt-4" style="display:none;">
         <h5 class="fw-bold">Answer Options</h5>
@@ -41,6 +46,7 @@ function toggleQuestionFields() {
   var v = t.value;
   document.getElementById('mcq-options').style.display = v === 'MCQ' ? '' : 'none';
   document.getElementById('tf-options').style.display = v === 'TRUE_FALSE' ? '' : 'none';
+  document.getElementById('correct-answer-field').style.display = v === 'SHORT_ANSWER' ? '' : 'none';
 }
 document.addEventListener('DOMContentLoaded', toggleQuestionFields);
 document.getElementById('id_question_type')?.addEventListener('change', toggleQuestionFields);

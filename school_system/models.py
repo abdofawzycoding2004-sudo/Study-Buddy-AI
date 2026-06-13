@@ -552,6 +552,7 @@ class Question(models.Model):
     explanation = models.TextField(blank=True)
     points = models.PositiveIntegerField(default=1)
     order = models.PositiveIntegerField(default=0)
+    correct_answer = models.TextField(blank=True, help_text='Expected answer for Short Answer type')
     required = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -561,7 +562,7 @@ class Question(models.Model):
 
     @property
     def is_auto_gradable(self):
-        return self.question_type in ['MCQ', 'TRUE_FALSE']
+        return self.question_type in ['MCQ', 'TRUE_FALSE', 'SHORT_ANSWER']
 
     def __str__(self):
         return f"{self.get_question_type_display()} - {self.question_text[:50]}"

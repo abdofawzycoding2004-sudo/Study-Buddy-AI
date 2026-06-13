@@ -38,10 +38,25 @@ class AutoGradingEngine:
         return total
 
     @staticmethod
+    def grade_short_answer(submission):
+        questions = submission.assignment.questions.filter(
+            question_type='SHORT_ANSWER'
+        )
+        total = 0
+        for q in questions:
+            ans = submission.submitted_answers.get(str(q.pk))
+            if ans is None or not q.correct_answer:
+                continue
+            if ans.strip().casefold() == q.correct_answer.strip().casefold():
+                total += q.points
+        return total
+
+    @staticmethod
     def calculate_total_score(submission):
         mcq = AutoGradingEngine.grade_mcq(submission)
         tf = AutoGradingEngine.grade_true_false(submission)
-        return mcq + tf
+        sa = AutoGradingEngine.grade_short_answer(submission)
+        return mcq + tf + sa
 
     @staticmethod
     def apply_late_penalty(submission):
@@ -109,6 +124,9 @@ class AssessmentStatistics:
             elif question.question_type == 'TRUE_FALSE':
                 correct_opt = question.options.filter(is_correct=True).first()
                 if correct_opt and ans == correct_opt.option_text:
+                    correct += 1
+            elif question.question_type == 'SHORT_ANSWER':
+                if question.correct_answer and ans.strip().casefold() == question.correct_answer.strip().casefold():
                     correct += 1
         return round((correct / subs.count()) * 100, 1)
 
