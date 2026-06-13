@@ -23,3 +23,57 @@
   </div></div>
 </div>
 {% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var gradeEl = document.getElementById('id_grade');
+  var classroomEl = document.getElementById('id_classroom');
+  var studentsEl = document.getElementById('id_target_students');
+
+  if (!gradeEl || !classroomEl) return;
+
+  function loadClassrooms(gradeId) {
+    classroomEl.innerHTML = '<option value="">---------</option>';
+    studentsEl.innerHTML = '';
+    if (!gradeId) return;
+    fetch('/api/grade-classrooms/?grade_id=' + gradeId)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        data.forEach(function (c) {
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          classroomEl.appendChild(opt);
+        });
+      });
+  }
+
+  function loadStudents(classroomId) {
+    studentsEl.innerHTML = '';
+    if (!classroomId) return;
+    fetch('/api/classroom-students/?classroom_id=' + classroomId)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        data.forEach(function (s) {
+          var opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.full_name + ' (' + s.student_id + ')';
+          studentsEl.appendChild(opt);
+        });
+      });
+  }
+
+  gradeEl.addEventListener('change', function () {
+    loadClassrooms(this.value);
+  });
+
+  classroomEl.addEventListener('change', function () {
+    loadStudents(this.value);
+  });
+
+  if (gradeEl.value) {
+    loadClassrooms(gradeEl.value);
+  }
+});
+</script>
+{% endblock %}

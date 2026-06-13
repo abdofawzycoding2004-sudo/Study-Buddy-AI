@@ -666,3 +666,29 @@ def get_school_subjects(request):
         return JsonResponse([], safe=False)
     subjects = Subject.objects.filter(schools__id=school_id).values('id', 'name', 'code')
     return JsonResponse(list(subjects), safe=False)
+
+
+def get_grade_classrooms(request):
+    grade_id = request.GET.get('grade_id')
+    if not grade_id:
+        return JsonResponse([], safe=False)
+    rooms = ClassRoom.objects.filter(grade__id=grade_id, is_active=True).values('id', 'name')
+    return JsonResponse(list(rooms), safe=False)
+
+
+def get_classroom_students(request):
+    classroom_id = request.GET.get('classroom_id')
+    if not classroom_id:
+        return JsonResponse([], safe=False)
+    students = StudentProfile.objects.filter(
+        classroom__id=classroom_id
+    ).select_related('user')
+    students_list = [
+        {
+            'id': s.id,
+            'student_id': s.student_id,
+            'full_name': s.full_name,
+        }
+        for s in students
+    ]
+    return JsonResponse(students_list, safe=False)

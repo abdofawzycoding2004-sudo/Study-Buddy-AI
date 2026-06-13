@@ -461,9 +461,8 @@ class AssessmentForm(forms.ModelForm):
             self.fields['grade'].queryset = Grade.objects.filter(
                 school=teacher.school, is_active=True
             )
-            self.fields['classroom'].queryset = ClassRoom.objects.filter(
-                grade__school=teacher.school, is_active=True
-            )
+            self.fields['classroom'].queryset = ClassRoom.objects.none()
+            self.fields['target_students'].queryset = StudentProfile.objects.none()
         self.fields['target_students'].required = False
         self.fields['time_limit_mins'].required = False
 

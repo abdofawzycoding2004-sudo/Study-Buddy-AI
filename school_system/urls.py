@@ -4,7 +4,7 @@ from .views_teacher import (
     TimetableSlotDeleteView, LiveClassSessionListView,
     LiveClassSessionCreateView, LiveClassControlView,
     AttendanceManagementView, BulkAttendanceSaveView,
-    get_school_subjects,
+    get_school_subjects, get_grade_classrooms, get_classroom_students,
     AssessmentListView, AssessmentCreateView, AssessmentUpdateView,
     AssessmentDeleteView, AssessmentPublishView,
     QuestionManagementView, QuestionCreateView, QuestionUpdateView,
@@ -28,6 +28,8 @@ urlpatterns = [
     path('teacher/sessions/<int:session_id>/attendance/', AttendanceManagementView.as_view(), name='attendance_management'),
     path('teacher/sessions/<int:session_id>/attendance/save/', BulkAttendanceSaveView.as_view(), name='attendance_save'),
     path('api/school-subjects/', get_school_subjects, name='api_school_subjects'),
+    path('api/grade-classrooms/', get_grade_classrooms, name='api_grade_classrooms'),
+    path('api/classroom-students/', get_classroom_students, name='api_classroom_students'),
 
     # Assessment (Teacher)
     path('teacher/assessments/', AssessmentListView.as_view(), name='teacher_assessments'),
