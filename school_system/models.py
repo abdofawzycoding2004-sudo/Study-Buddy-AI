@@ -802,6 +802,8 @@ class DocumentShare(models.Model):
         return f"{self.title} ({self.owner_teacher})"
 
     def clean(self):
+        if self.file_size is None:
+            return
         max_bytes = getattr(settings, 'MAX_UPLOAD_SIZE', 100 * 1024 * 1024)
         if self.file_size > max_bytes:
             raise ValidationError(f'File size exceeds maximum allowed ({max_bytes // (1024*1024)}MB).')

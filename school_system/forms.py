@@ -681,6 +681,7 @@ class DocumentShareForm(forms.ModelForm):
         file = self.cleaned_data.get('file_upload')
         if not file:
             return file
+        self.instance.file_size = file.size
         from .utils import validate_file_upload
         validate_file_upload(file)
         return file
